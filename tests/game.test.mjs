@@ -5,16 +5,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { load, World, createAutopilot, STEP, sailVoyage } from './helpers.mjs';
 
-const { regionIndexOf, isBossWave, isRegionStart, lapOf, REGIONS, REGION_COUNT } = await load('regions.js');
-const { WAVES, waveDef, FINAL_WAVE } = await load('waves.js');
+const { regionIndexOf, isBossWave, isRegionStart, lapOf, REGIONS, REGION_COUNT } = await load('data/regions.js');
+const { WAVES, waveDef, FINAL_WAVE } = await load('data/waves.js');
 const { ENEMY_TYPES, ENEMY_COST } = await load('enemies/index.js');
-const { Progress, salvageFor } = await load('progress.js');
-const { TALENTS, maxLevel, totalLevels } = await load('talents.js');
-const { MEDALS, awardMedals } = await load('medals.js');
-const { CONTRACTS, takeContract, updateContract, resolveContract, offerContracts } = await load('contracts.js');
-const { createMine, updateMines } = await load('mines.js');
-const { UPGRADES, applyUpgrade, upgradeById, rollChoices } = await load('upgrades.js');
-const { createRng } = await load('random.js');
+const { Progress, salvageFor } = await load('save/progress.js');
+const { TALENTS, maxLevel, totalLevels } = await load('data/talents.js');
+const { MEDALS, awardMedals } = await load('data/medals.js');
+const { CONTRACTS, offerContracts } = await load('data/contracts.js');
+const { takeContract, updateContract, resolveContract } = await load('sim/contract-tracker.js');
+const { createMine, updateMines } = await load('sim/mines.js');
+const { UPGRADES, applyUpgrade, upgradeById, rollChoices } = await load('data/upgrades.js');
+const { createRng } = await load('core/random.js');
 
 test('the voyage is four regions of three waves, each ending in its own boss', () => {
   assert.equal(REGION_COUNT, 4);
@@ -26,6 +27,17 @@ test('the voyage is four regions of three waves, each ending in its own boss', (
     if (isBossWave(wave)) assert.equal(WAVES[wave].boss, REGIONS[regionIndexOf(wave)].boss);
   }
   assert.deepEqual(REGIONS.slice(1).map((region) => region.boss), ['colossus', 'eel', 'admiral', 'kraken']);
+});
+
+test('the content manifest counts what the tables really hold', async () => {
+  const { CONTENT } = await load('data/content.js');
+  assert.equal(CONTENT.counts.regions, REGION_COUNT);
+  assert.equal(CONTENT.counts.bosses, 4);
+  assert.equal(CONTENT.counts.creatures, 7);
+  assert.equal(CONTENT.counts.upgrades, UPGRADES.length);
+  assert.equal(CONTENT.counts.talents, TALENTS.length);
+  assert.equal(CONTENT.counts.medals, MEDALS.length);
+  assert.equal(CONTENT.creatures.length + CONTENT.bosses.length, Object.keys(ENEMY_TYPES).length);
 });
 
 test('every creature in the wave table exists and costs budget', () => {

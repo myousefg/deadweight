@@ -1,8 +1,8 @@
 // The four anchor silhouettes, drawn upright around the origin (about 22 units each way). The
 // in-game anchor spins and scales them; the dock draws them still, as a preview.
 
-import { PALETTE } from '../config.js';
-import { TAU } from '../math.js';
+import { PALETTE } from '../core/config.js';
+import { TAU } from '../core/math.js';
 
 const OUTLINE = '#1d2a31';
 

@@ -1,11 +1,11 @@
 // The harbor between waves: pick one of three upgrade cards, then optionally spend pearls to
 // reroll the cards or mend a life ring, and sail on. Choices here are the run's build.
 
-import { W, H, PALETTE, HARBOR } from '../config.js';
-import { TAU, formatScore } from '../math.js';
-import { rollChoices, applyUpgrade, levelOf, UPGRADES } from '../upgrades.js';
-import { waveDef } from '../waves.js';
-import { isBossWave, isRegionStart, regionIndexOf } from '../regions.js';
+import { W, H, PALETTE, HARBOR } from '../core/config.js';
+import { TAU, formatScore } from '../core/math.js';
+import { rollChoices, applyUpgrade, levelOf, UPGRADES } from '../data/upgrades.js';
+import { waveDef } from '../data/waves.js';
+import { isBossWave, isRegionStart, regionIndexOf } from '../data/regions.js';
 import { text, title, panel, button, inRect, roundRect, keycap, wrap } from '../render/ui.js';
 import { drawIcon } from '../render/icons.js';
 import { drawRouteStrip } from '../render/chart-art.js';

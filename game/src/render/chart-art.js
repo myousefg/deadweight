@@ -1,11 +1,11 @@
 // Drawing for the sea chart: the parchment, little region and boss icons, and the compact route
 // strip the harbor shows so the player always knows where on the voyage they are.
 
-import { PALETTE } from '../config.js';
-import { TAU } from '../math.js';
-import { createRng } from '../random.js';
+import { PALETTE } from '../core/config.js';
+import { TAU } from '../core/math.js';
+import { createRng } from '../core/random.js';
 import { text } from './ui.js';
-import { REGIONS, REGION_COUNT } from '../regions.js';
+import { REGIONS, REGION_COUNT } from '../data/regions.js';
 
 export const REGION_COLORS = {
   shallows: { top: '#37b8bd', bottom: '#127184', accent: '#ffd66b' },

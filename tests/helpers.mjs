@@ -21,7 +21,7 @@ const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'game', 'src');
 export const load = (path) => import(pathToFileURL(join(SRC, path)).href);
 
 const [{ World }, { createAutopilot }, { STEP }, { rollChoices, applyUpgrade }, { isRegionStart, regionIndexOf, REGIONS }, contracts] = await Promise.all([
-  load('world.js'), load('autopilot.js'), load('config.js'), load('upgrades.js'), load('regions.js'), load('contracts.js'),
+  load('sim/world.js'), load('tools/autopilot.js'), load('core/config.js'), load('data/upgrades.js'), load('data/regions.js'), Promise.all([load('data/contracts.js'), load('sim/contract-tracker.js')]).then(([data, tracker]) => ({ ...data, ...tracker })),
 ]);
 
 export { World, createAutopilot, STEP };

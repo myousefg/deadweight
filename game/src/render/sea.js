@@ -2,9 +2,9 @@
 // vignette) is painted once per region; every frame adds drifting caustics or glowing motes,
 // rolling wave lines, foam flecks and surf on the rocks.
 
-import { W, H } from '../config.js';
-import { TAU } from '../math.js';
-import { createRng } from '../random.js';
+import { W, H } from '../core/config.js';
+import { TAU } from '../core/math.js';
+import { createRng } from '../core/random.js';
 
 const PAD = 20;
 const WAVE_LINES = 15;

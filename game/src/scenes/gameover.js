@@ -1,6 +1,6 @@
 // "Lost at sea": the boat has sunk. Shows the run's numbers and offers an instant restart.
 
-import { W, H, PALETTE } from '../config.js';
+import { W, H, PALETTE } from '../core/config.js';
 import { drawResultsPanel, drawMedalStrip } from '../render/results-panel.js';
 import { text, title, button, inRect, keycap } from '../render/ui.js';
 

@@ -1,14 +1,15 @@
 // Entry point: size the canvas to the window, build the game, and run the animation loop.
 // Adding ?shot=start|play|harbor|end to the address stages a screenshot scene (see shots.js).
 
-import { W, H } from './config.js';
-import { Game } from './game.js';
-import { stageShot } from './shots.js';
+import { W, H } from './core/config.js';
+import { CONTENT } from './data/content.js';
+import { Game } from './core/game.js';
+import { stageShot } from './tools/shots.js';
 
 const canvas = document.getElementById('game');
 const params = new URLSearchParams(window.location.search);
 const shot = params.get('shot');
-const game = new Game(canvas);
+const game = new Game(canvas, CONTENT);
 
 /** Fit the 1280 by 720 playfield to the window, sharper on big or high-density screens. */
 function fit() {

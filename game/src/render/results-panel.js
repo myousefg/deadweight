@@ -1,10 +1,10 @@
 // The run summary shared by the victory and game-over screens: a big score, a rank, a grid of the
 // run's numbers, and a strip for any medals this voyage earned.
 
-import { PALETTE, FONT_TITLE, W } from '../config.js';
-import { formatScore, formatTime } from '../math.js';
-import { FINAL_WAVE } from '../waves.js';
-import { MEDALS } from '../medals.js';
+import { PALETTE, FONT_TITLE, W } from '../core/config.js';
+import { formatScore, formatTime } from '../core/math.js';
+import { FINAL_WAVE } from '../data/waves.js';
+import { MEDALS } from '../data/medals.js';
 import { text, panel } from './ui.js';
 import { drawIcon } from './icons.js';
 

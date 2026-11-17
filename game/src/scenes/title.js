@@ -1,27 +1,30 @@
 // The title screen: the real game plays itself on the right (an autopilot swings the anchor
-// through drifting creatures) while the left explains the controls and offers the voyage, the
-// endless Deep Dive, or the dock. A small captain's card shows the career so far.
+// through drifting creatures) while the left explains the controls, shows the captain's career at a
+// glance (workshop talents, medals, bosses beaten, anchors owned) and offers the voyage, the
+// endless Deep Dive, or the dock.
 
-import { W, H, PALETTE, FONT_TITLE } from '../config.js';
-import { World } from '../world.js';
-import { createAutopilot } from '../autopilot.js';
-import { anchorType, ANCHOR_TYPES } from '../anchor-types.js';
-import { MEDALS } from '../medals.js';
-import { totalLevels } from '../talents.js';
+import { W, H, PALETTE, FONT_TITLE } from '../core/config.js';
+import { World } from '../sim/world.js';
+import { createAutopilot } from '../tools/autopilot.js';
+import { anchorType } from '../data/anchor-types.js';
+import { totalLevels } from '../data/talents.js';
 import { drawAnchorShape } from '../render/anchor-shapes.js';
 import { drawIcon } from '../render/icons.js';
+import { drawBossIcon } from '../render/chart-art.js';
 import { text, title, panel, button, inRect, keycap, measure } from '../render/ui.js';
-import { clamp, formatScore } from '../math.js';
+import { clamp, formatScore } from '../core/math.js';
 
 const START_BUTTON = { x: 50, y: 616, w: 270, h: 70 };
 const DIVE_BUTTON = { x: 334, y: 616, w: 210, h: 70 };
 const DOCK_BUTTON = { x: 558, y: 616, w: 200, h: 70 };
+const PANEL = { x: 50, y: 262, w: 710, h: 326 };
+const CAREER_X = 418;
 const CONTROLS = [
   ['WASD', 'Row the boat'],
-  ['MOUSE', 'Swing the heavy anchor. Speed is damage'],
-  ['CLICK', 'Slam the anchor down: a crushing area blow'],
-  ['SHIFT', 'Dash through danger'],
-  ['SPACE', 'Tide Surge: charge it with kills and pearls'],
+  ['MOUSE', 'Swing the anchor'],
+  ['CLICK', 'Slam it down'],
+  ['SHIFT', 'Dash'],
+  ['SPACE', 'Tide Surge'],
 ];
 
 export class TitleScene {
@@ -78,7 +81,7 @@ export class TitleScene {
     }
     world.update(dt, this.pilot(world, dt));
     // The demo stays on the open-sea side of the screen, clear of the controls panel.
-    world.boat.x = clamp(world.boat.x, 690, W - 90);
+    world.boat.x = clamp(world.boat.x, 790, W - 90);
     world.boat.y = clamp(world.boat.y, 220, H - 90);
   }
 
@@ -86,7 +89,7 @@ export class TitleScene {
   spawnDemoCreature(world) {
     const { rng } = world;
     const side = rng.int(0, 2);
-    let x = rng.range(700, W);
+    let x = rng.range(800, W);
     let y = -46;
     if (side === 1) {
       x = W + 46;
@@ -121,15 +124,18 @@ export class TitleScene {
       size: 30, align: 'center', color: PALETTE.cream, stroke: '#10222d', strokeWidth: 7,
     });
 
-    panel(ctx, 50, 262, 710, 326, { radius: 22, fill: 'rgba(4, 35, 47, 0.82)' });
-    text(ctx, 'HOW TO PLAY', 80, 302, { size: 21, color: PALETTE.gold });
-    CONTROLS.forEach(([key, label], index) => {
-      const y = 346 + index * 42;
-      const width = keycap(ctx, key, 80, y, { size: 19 });
-      text(ctx, label, 80 + Math.max(width, 96) + 18, y, { size: 21, weight: 'normal', color: PALETTE.pearl });
-    });
-    text(ctx, '4 regions · 4 bosses · 17 upgrades · 9 talents · 18 medals', 80, 566, {
-      size: 21, color: PALETTE.mint,
+    panel(ctx, PANEL.x, PANEL.y, PANEL.w, PANEL.h, { radius: 22, fill: 'rgba(4, 35, 47, 0.84)' });
+    this.drawControls(ctx);
+    ctx.strokeStyle = 'rgba(234, 252, 247, 0.22)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(CAREER_X - 16, PANEL.y + 22);
+    ctx.lineTo(CAREER_X - 16, PANEL.y + PANEL.h - 62);
+    ctx.stroke();
+    this.drawCareer(ctx, game);
+    const { counts } = game.content;
+    text(ctx, `${counts.regions} regions · ${counts.bosses} bosses · ${counts.creatures} creatures · ${counts.upgrades} upgrades · ${counts.contracts} contracts`, PANEL.x + PANEL.w / 2, PANEL.y + PANEL.h - 22, {
+      size: 20, align: 'center', color: PALETTE.mint,
     });
 
     button(ctx, START_BUTTON, 'SET SAIL', { primary: true, hover: this.hover === 'start', size: 32 });
@@ -156,33 +162,117 @@ export class TitleScene {
     text(ctx, muteLabel, W - 20 - width, 30, { size: 14, color: 'rgba(234,252,247,0.8)', stroke: 'rgba(2,22,32,0.8)', strokeWidth: 3 });
   }
 
-  /** The captain's card: the equipped anchor, the salvage in the hold and the career at a glance. */
+  /** The left half of the panel: the five controls. */
+  drawControls(ctx) {
+    text(ctx, 'HOW TO PLAY', PANEL.x + 30, PANEL.y + 40, { size: 21, color: PALETTE.gold });
+    CONTROLS.forEach(([key, label], index) => {
+      const y = PANEL.y + 86 + index * 42;
+      const width = keycap(ctx, key, PANEL.x + 30, y, { size: 19 });
+      text(ctx, label, PANEL.x + 30 + Math.max(width, 96) + 14, y, { size: 21, weight: 'normal', color: PALETTE.pearl });
+    });
+  }
+
+  /**
+   * The right half: the captain's career as four rows of badges that light up as they are earned.
+   * Workshop talents (with level pips), medals, bosses beaten and anchors owned.
+   */
+  drawCareer(ctx, game) {
+    const { progress, content } = game;
+    const gold = PALETTE.gold;
+    const dim = 'rgba(255, 255, 255, 0.07)';
+    const dimLine = 'rgba(234, 252, 247, 0.28)';
+    text(ctx, 'YOUR CAPTAIN', CAREER_X, PANEL.y + 40, { size: 21, color: gold });
+
+    // Workshop talents.
+    text(ctx, `WORKSHOP  ${progress.talentTotal}/${totalLevels()}`, CAREER_X, PANEL.y + 70, { size: 15, color: PALETTE.pearl });
+    content.talents.forEach((talent, index) => {
+      const cx = CAREER_X + 16 + index * 36;
+      const cy = PANEL.y + 94;
+      const level = progress.talentLevel(talent.id);
+      ctx.beginPath();
+      ctx.arc(cx, cy, 16, 0, Math.PI * 2);
+      ctx.fillStyle = level > 0 ? 'rgba(255, 200, 61, 0.2)' : dim;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = level > 0 ? gold : dimLine;
+      ctx.stroke();
+      drawIcon(ctx, talent.icon, cx, cy, 20, level > 0 ? '#ffffff' : 'rgba(234, 252, 247, 0.45)');
+      for (let pip = 0; pip < talent.costs.length; pip += 1) {
+        ctx.beginPath();
+        ctx.arc(cx + (pip - (talent.costs.length - 1) / 2) * 7, cy + 24, 2.4, 0, Math.PI * 2);
+        ctx.fillStyle = pip < level ? gold : 'rgba(255, 255, 255, 0.22)';
+        ctx.fill();
+      }
+    });
+
+    // Medals: two rows of nine.
+    text(ctx, `MEDALS  ${progress.medalCount}/${content.medals.length}`, CAREER_X, PANEL.y + 150, { size: 15, color: PALETTE.pearl });
+    content.medals.forEach((medal, index) => {
+      const cx = CAREER_X + 16 + (index % 9) * 36;
+      const cy = PANEL.y + 174 + Math.floor(index / 9) * 30;
+      const earned = progress.hasMedal(medal.id);
+      ctx.beginPath();
+      ctx.arc(cx, cy, 12, 0, Math.PI * 2);
+      ctx.fillStyle = earned ? 'rgba(255, 200, 61, 0.28)' : dim;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = earned ? gold : dimLine;
+      ctx.stroke();
+      if (earned) drawIcon(ctx, medal.icon, cx, cy, 15, gold);
+    });
+
+    // Bosses beaten and anchors owned.
+    const beaten = content.regions.filter((region) => progress.bossesDown(region.boss) > 0).length;
+    text(ctx, `BOSSES  ${beaten}/${content.regions.length}`, CAREER_X, PANEL.y + 240, { size: 15, color: PALETTE.pearl });
+    content.regions.forEach((region, index) => {
+      const cx = CAREER_X + 18 + index * 40;
+      const cy = PANEL.y + 268;
+      const down = progress.bossesDown(region.boss) > 0;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 18, 0, Math.PI * 2);
+      ctx.fillStyle = down ? 'rgba(111, 242, 197, 0.16)' : dim;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = down ? PALETTE.mint : dimLine;
+      ctx.stroke();
+      drawBossIcon(ctx, region.boss, cx, cy, 28, down ? PALETTE.cream : 'rgba(234, 252, 247, 0.4)', 'rgba(4, 35, 47, 0.8)');
+    });
+    const anchorX = CAREER_X + 176;
+    text(ctx, `ANCHORS  ${progress.owned}/${content.anchors.length}`, anchorX, PANEL.y + 240, { size: 15, color: PALETTE.pearl });
+    content.anchors.forEach((type, index) => {
+      const cx = anchorX + 18 + index * 38;
+      const cy = PANEL.y + 268;
+      const owned = progress.isUnlocked(type.id);
+      ctx.beginPath();
+      ctx.arc(cx, cy, 18, 0, Math.PI * 2);
+      ctx.fillStyle = owned ? 'rgba(180, 196, 207, 0.18)' : dim;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = owned ? PALETTE.cream : dimLine;
+      ctx.stroke();
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(0.62, 0.62);
+      ctx.globalAlpha = owned ? 1 : 0.35;
+      drawAnchorShape(ctx, type.id, game.clock);
+      ctx.restore();
+    });
+  }
+
+  /** The equipped anchor and the salvage in the hold, tucked in the top corner. */
   drawCaptain(ctx, game) {
     const { progress } = game;
     const type = anchorType(progress.selected);
     const x = W - 352;
     const y = 46;
-    panel(ctx, x, y, 332, 132, { radius: 18, fill: 'rgba(4, 35, 47, 0.82)', shadow: false });
+    panel(ctx, x, y, 332, 80, { radius: 18, fill: 'rgba(4, 35, 47, 0.82)', shadow: false });
     ctx.save();
-    ctx.translate(x + 40, y + 38 + Math.sin(game.clock * 2) * 2);
+    ctx.translate(x + 40, y + 40 + Math.sin(game.clock * 2) * 2);
     ctx.rotate(Math.sin(game.clock) * 0.3);
     ctx.scale(1.1, 1.1);
     drawAnchorShape(ctx, type.id, game.clock);
     ctx.restore();
-    text(ctx, type.name, x + 80, y + 32, { size: 21 });
-    text(ctx, `SALVAGE  ${formatScore(progress.salvage)}`, x + 80, y + 58, { size: 16, color: PALETTE.gold });
-
-    const chips = [
-      ['medal', `${progress.medalCount}/${MEDALS.length}`, 'MEDALS'],
-      ['chain', `${progress.talentTotal}/${totalLevels()}`, 'TALENTS'],
-      ['anchor', `${progress.owned}/${ANCHOR_TYPES.length}`, 'ANCHORS'],
-    ];
-    chips.forEach(([icon, value, label], index) => {
-      const cx = x + 18 + index * 104;
-      panel(ctx, cx, y + 76, 96, 44, { radius: 12, fill: 'rgba(255, 255, 255, 0.07)', stroke: null, shadow: false });
-      drawIcon(ctx, icon, cx + 18, y + 98, 22, PALETTE.cream);
-      text(ctx, value, cx + 36, y + 98, { size: 17 });
-      text(ctx, label, cx + 36, y + 113, { size: 10, color: PALETTE.pearl });
-    });
+    text(ctx, type.name, x + 80, y + 34, { size: 21 });
+    text(ctx, `SALVAGE  ${formatScore(progress.salvage)}`, x + 80, y + 60, { size: 16, color: PALETTE.gold });
   }
 }

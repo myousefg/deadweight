@@ -2,11 +2,12 @@
 // waits in the region ahead, and two real choices: calm or stormy seas (more creatures, a
 // tougher boss, half again as much score) and an optional bounty contract worth extra salvage.
 
-import { W, H, PALETTE, FONT_TITLE } from '../config.js';
-import { TAU } from '../math.js';
-import { REGIONS, REGION_COUNT, regionIndexOf, lapOf } from '../regions.js';
-import { FINAL_WAVE } from '../waves.js';
-import { offerContracts, takeContract } from '../contracts.js';
+import { W, H, PALETTE, FONT_TITLE } from '../core/config.js';
+import { TAU } from '../core/math.js';
+import { REGIONS, REGION_COUNT, regionIndexOf, lapOf } from '../data/regions.js';
+import { FINAL_WAVE } from '../data/waves.js';
+import { offerContracts } from '../data/contracts.js';
+import { takeContract } from '../sim/contract-tracker.js';
 import { drawParchment, drawCompass, drawRegionIcon, drawBossIcon, REGION_COLORS } from '../render/chart-art.js';
 import { drawIcon } from '../render/icons.js';
 import { text, panel, button, inRect, roundRect, wrap, keycap } from '../render/ui.js';

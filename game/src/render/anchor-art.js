@@ -1,8 +1,8 @@
 // The chain and the anchor: a sagging linked chain from the boat, a speed-coloured motion trail,
 // a glow that tells you how hard the next blow will land, and the equipped anchor itself.
 
-import { HIT_TIERS } from '../config.js';
-import { TAU } from '../math.js';
+import { HIT_TIERS } from '../core/config.js';
+import { TAU } from '../core/math.js';
 import { drawAnchorShape } from './anchor-shapes.js';
 
 function chainPath(ctx, boat, anchor) {

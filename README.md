@@ -102,28 +102,27 @@ mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 
 Screenshot scenes are staged by the game itself: add `?shot=start`, `?shot=play`, `?shot=harbor`,
 `?shot=end`, `?shot=chart`, `?shot=dock`, `?shot=workshop` or `?shot=log` to the address (see
-`shots.json` and `game/src/shots.js`). Each one plays the real game forward with a computer pilot
+`shots.json` and `game/src/tools/shots.js`). Each one plays the real game forward with a computer pilot
 and stops on a good frame, using a modest staged save (held in memory, never written to storage)
 so the menus show a few runs' worth of medals and talents.
 
 ## How the code is laid out
 
-Everything the game needs is in `game/`; each file has one job.
+Everything the game needs is in `game/src/`; each folder and file has one job.
 
 | Folder / file | Job |
 | --- | --- |
-| `src/main.js`, `game.js`, `input.js`, `audio.js` | Boot, fixed-step loop and scene switching, keyboard and mouse, synthesised sound |
-| `src/world.js`, `combat.js`, `waves.js` | The simulation, contact rules and scoring, the wave table and spawn director |
-| `src/regions.js`, `currents.js`, `mines.js` | The four regions, their kelp and whirlpool hazards, and the drifting mines |
-| `src/boat.js`, `anchor.js`, `anchor-types.js` | The player: sailing and dashing, the spring-and-chain anchor, the four anchors |
-| `src/upgrades.js`, `talents.js`, `contracts.js`, `medals.js` | Harbor cards, permanent workshop talents, bounty contracts and medals |
-| `src/progress.js` | Salvage, owned anchors, talents, medals and records, saved between visits |
-| `src/enemies/` | One file per creature (jelly, piranha, urchin, puffer, shark, manta, angler) and boss (colossus, eel, admiral, kraken): behaviour and art together |
-| `src/pickups.js`, `projectiles.js`, `hazards.js` | Pearls and life rings, spines, ink and cannonballs, slams, bolts and shockwave rings |
-| `src/scenes/` | Title, dock (anchors, workshop, log), sea chart, play, harbor, game over and victory |
-| `src/render/` | Sea backgrounds, boat and anchor art, HUD, UI kit, icons, chart art, results panel |
-| `src/autopilot.js`, `shots.js` | A computer pilot that powers the title demo, plays the game for testing and stages the screenshots |
-| `tests/` | Headless tests: wave table, deep dive, every creature, mines, talents, contracts, medals, upgrades |
+| `main.js` | Boot: size the canvas, build the game from `data/content.js`, run the loop |
+| `core/` | `game.js` (fixed-step loop, scene switching, run banking), `input.js`, `config.js` (every tuning number and the palette), `math.js`, `random.js` |
+| `data/` | Pure game content: `regions.js`, `waves.js`, `upgrades.js`, `anchor-types.js`, `talents.js`, `contracts.js`, `medals.js`, and `content.js`, which gathers them all |
+| `sim/` | The simulation: `world.js`, `director.js` (spawn schedule), `combat.js`, `boat.js`, `anchor.js`, `hazards.js`, `mines.js`, `currents.js`, `projectiles.js`, `pickups.js`, `contract-tracker.js`, `particles.js`, `effects.js` |
+| `enemies/` | `enemy.js` (what every creature shares), `creatures/` (jelly, piranha, urchin, puffer, shark, manta, angler) and `bosses/` (colossus, eel, admiral, kraken): behaviour and art together |
+| `audio/` | `engine.js` (Web Audio buses and synthesis primitives), `sfx.js` (named sound effects), `music.js` (the generative shanty) |
+| `save/` | `progress.js`: salvage, owned anchors, talents, medals and records, kept in localStorage |
+| `scenes/` | Title, dock (anchors, workshop, log), sea chart, play, harbor, game over and victory |
+| `render/` | Sea backgrounds, boat and anchor art, HUD, UI kit, icons, chart art, results panel |
+| `tools/` | `autopilot.js` (a computer pilot that powers the title demo and plays the game for testing) and `shots.js` (stages the screenshots) |
+| `tests/` | Headless tests: wave table, deep dive, every creature, mines, talents, contracts, medals, upgrades, content counts |
 
 `main.ts`, `serve.ts` and `vendor/makefun-game.ts` are the make.fun hand-in program, a static file
 server for local play, and make.fun's own library (copied unchanged from the bounty kit).
