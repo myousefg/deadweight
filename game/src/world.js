@@ -13,8 +13,11 @@ import { createBuild } from './upgrades.js';
 import { applyAnchorType } from './anchor-types.js';
 import { createEnemy, drawEnemy } from './enemy.js';
 import { ENEMY_TYPES } from './enemies/index.js';
-import { WaveDirector, FINAL_WAVE, WAVES } from './waves.js';
-import { regionOf, isBossWave } from './regions.js';
+import { WaveDirector, FINAL_WAVE, waveDef } from './waves.js';
+import { regionOf, isBossWave, isRegionStart, lapOf } from './regions.js';
+import { applyTalents } from './talents.js';
+import { updateContract, resolveContract } from './contracts.js';
+import { createMines, updateMines, drawMines } from './mines.js';
 import { updateProjectiles, drawProjectiles } from './projectiles.js';
 import { updatePickups, drawPickups } from './pickups.js';
 import { updateHazards, drawHazardTelegraphs, drawHazardTentacles } from './hazards.js';
@@ -29,10 +32,11 @@ const INTRO_TIME = 2.4;
 const NO_CONTROLS = { moveX: 0, moveY: 0, aimX: W / 2, aimY: H / 2, slam: false, surge: false, dash: false };
 
 export class World {
-  constructor({ seed = 1, attract = false, anchorKind = 'ship' } = {}) {
+  constructor({ seed = 1, attract = false, anchorKind = 'ship', talents = {}, endless = false } = {}) {
     this.seed = seed;
     this.attract = attract;
     this.anchorKind = anchorKind;
+    this.endless = endless;
     this.rng = createRng(seed);
     this.particles = new Particles();
     this.effects = new Effects();
@@ -45,10 +49,12 @@ export class World {
     this.pickups = [];
     this.hazards = [];
     this.zones = [];
+    this.mines = [];
     this.zaps = [];
     this.director = new WaveDirector(this);
     this.stats = {
       score: 0, kills: 0, bosses: 0, pearls: 0, damage: 0, hits: 0, slams: 0, surges: 0, reflected: 0, bestCombo: 0, time: 0,
+      mines: 0, contracts: 0, contractSalvage: 0, cleanRegions: 0, stormClears: 0, bossIds: [],
     };
     this.combo = { count: 0, timer: 0 };
     /** Pearls available to spend at the harbor (stats.pearls counts every one ever caught). */
@@ -71,6 +77,20 @@ export class World {
     /** True once only stragglers remain: ranged fish then close in instead of keeping their distance. */
     this.hunt = false;
     this.huntTimer = 0;
+    /** Boss health grows by lap in the Deep Dive. */
+    this.bossScale = 1;
+    this.tideHead = 0;
+    this.freeReroll = 0;
+    this.stormBonus = 0;
+    this.hitsAtRegionStart = 0;
+    /** The bounty contract being worked on in this region, or null. */
+    this.contract = null;
+    applyTalents(this, talents);
+  }
+
+  /** Health for a boss with this base value: stormy seas and later Deep Dive laps make it tougher. */
+  bossHp(base) {
+    return Math.round(base * (this.stormy ? 1.15 : 1) * this.bossScale);
   }
 
   /** The region the current (or upcoming) wave is in. */
@@ -81,26 +101,30 @@ export class World {
   /* ------------------------------------------------------------ lifecycle */
 
   startWave(wave) {
-    const def = WAVES[wave];
+    const def = waveDef(wave);
     this.wave = wave;
+    this.bossScale = 1 + 0.55 * lapOf(wave);
+    if (isRegionStart(wave)) this.hitsAtRegionStart = this.stats.hits;
+    if (this.tide < this.tideHead) this.tide = this.tideHead;
     this.state = 'intro';
     this.stateTimer = 0;
     this.speedScale = 1 + 0.035 * (wave - 1);
     this.vacuum = false;
     this.hitsAtWaveStart = this.stats.hits;
     this.zones = createZones(this, wave);
+    this.mines = createMines(this, wave);
     this.hazards.length = 0;
     this.director.begin(wave);
     const boss = def.boss ? ENEMY_TYPES[def.boss] : null;
     this.banner = {
       title: boss ? boss.name.toUpperCase() : `WAVE ${wave}`,
-      sub: boss ? `Boss of the ${this.region.name}` : def.name,
+      sub: boss ? `Boss of the ${this.region.name}` : lapOf(wave) > 0 ? `${def.name} · Lap ${lapOf(wave) + 1}` : def.name,
       hint: def.hint,
       t: 0,
       dur: INTRO_TIME + 0.4,
     };
     audio.play('wave');
-    audio.setIntensity(wave / FINAL_WAVE);
+    audio.setIntensity(Math.min(1, wave / FINAL_WAVE));
   }
 
   spawnEnemy(type, x, y) {
@@ -121,6 +145,8 @@ export class World {
     }
     this.projectiles.length = 0;
     this.hazards.length = 0;
+    for (const mine of this.mines) this.particles.splash(mine.x, mine.y, 8, PALETTE.foam, 200);
+    this.mines.length = 0;
     this.effects.addShake(22);
     this.effects.flash = 0.8;
     this.effects.stop(0.15);
@@ -134,6 +160,12 @@ export class World {
 
   /** Called when the Kraken dies: the run is won, the sea goes quiet and fireworks begin. */
   beginFinale(x, y) {
+    if (this.endless) {
+      // The Deep Dive has no last boss: the Kraken falls like any other and the sea goes on.
+      this.bossDown(x, y);
+      return;
+    }
+    this.regionDone();
     this.state = 'won';
     this.stateTimer = 0;
     this.finale = { x, y, t: 0, next: 0, confetti: false };
@@ -150,6 +182,13 @@ export class World {
     this.effects.stop(0.2);
     audio.play('win');
     audio.setIntensity(0.1);
+  }
+
+  /** A region's boss is down: tally clean and stormy clears and judge the region's contract. */
+  regionDone() {
+    if (this.stats.hits === this.hitsAtRegionStart) this.stats.cleanRegions += 1;
+    if (this.stormy) this.stats.stormClears += 1;
+    resolveContract(this);
   }
 
   /* ------------------------------------------------- helpers entities call */
@@ -185,6 +224,7 @@ export class World {
     this.updateEnemies(dt);
     updateProjectiles(this, dt);
     updateHazards(this, dt);
+    updateMines(this, dt);
     combat.resolveAnchor(this);
     combat.resolveFriendlyProjectiles(this);
     combat.resolveBoat(this);
@@ -198,6 +238,7 @@ export class World {
       if (this.zaps[i].life <= 0) this.zaps.splice(i, 1);
     }
     this.updateFinale(dt);
+    updateContract(this);
 
     audio.setSwing(Math.min(1, this.anchor.speed / 1300));
     if (this.banner) {
@@ -218,7 +259,7 @@ export class World {
       const stragglers = this.director.schedule.length === 0 && this.enemies.length > 0 && !isBossWave(this.wave);
       this.huntTimer = stragglers ? this.huntTimer + dt : 0;
       this.hunt = this.huntTimer > 8;
-      if (this.wave < FINAL_WAVE && this.director.cleared) this.clearWave();
+      if ((this.endless || this.wave < FINAL_WAVE) && this.director.cleared) this.clearWave();
     }
   }
 
@@ -227,6 +268,7 @@ export class World {
     this.stateTimer = 0;
     this.vacuum = true;
     const boss = isBossWave(this.wave);
+    if (boss) this.regionDone();
     const flawless = this.stats.hits === this.hitsAtWaveStart;
     const bonus = 250 * this.wave + (flawless ? 500 : 0) + (boss ? 1000 : 0);
     this.stats.score += bonus;
@@ -319,6 +361,7 @@ export class World {
     ctx.translate(shake.x, shake.y);
     drawSea(ctx, this.time, this.region.id);
     drawZones(ctx, this);
+    drawMines(ctx, this);
     drawHazardTelegraphs(ctx, this);
     drawPickups(ctx, this);
     this.particles.draw(ctx);

@@ -6,26 +6,61 @@
 
 **Deadweight** is a top-down arcade game about a tiny rowboat and a very heavy anchor. Row with the
 keyboard, swing the anchor with the mouse, and let momentum do the work: the faster the anchor
-moves, the harder it hits. Sail a three-region voyage, beat a boss in each, spend your pearls at the
-harbor and your salvage at the dock.
+moves, the harder it hits. Sail a four-region voyage, beat a boss in each, take on bounty
+contracts, spend pearls at the harbor and salvage at the dock, or dive into an endless sea.
 
 It is plain HTML5 canvas and ES modules, with no library, no build step, no image files and no
 network request. Every sprite is drawn in code and every sound is synthesised with Web Audio.
 
-![Deadweight: the Storm Eel Queen](screenshots/1-play.jpg)
+![Deadweight: the Drowned Admiral lines up a broadside](screenshots/1-play.jpg)
 
 ## The voyage
 
-Nine waves in three regions. Each region has its own look, hazard, creatures and boss.
+Twelve waves in four regions. Each region has its own look, hazard, creatures and boss.
 
 | Region | Hazard | Boss |
 | --- | --- | --- |
 | Sunlit Shallows | none | **Hermit Colossus**: armoured, so dash through its shockwaves and hit it when it is dazed |
 | Kelp Maze | kelp slows boats and fish | **Storm Eel Queen**: a long serpent that calls lightning and sweeps the whole sea |
+| Sunken Fleet | drifting mines blow up on touch | **The Drowned Admiral**: a ghost galleon with cannon broadsides, rams, a ghost crew and a trail of mines |
 | The Abyss | whirlpools drag you in | **The Kraken**: tentacle slams, ink fans and summoned jellies |
 
-Before each region the **sea chart** shows the voyage and offers a bet: *calm seas*, or *stormy seas*
-for 30% more creatures, a tougher boss and half again as much score.
+Before each region the **sea chart** shows the voyage and asks for two choices: *calm seas* or
+*stormy seas* (30% more creatures, a tougher boss, half again as much score), and an optional
+**bounty contract** for extra salvage ("clear the region without a hit", "chain a x12 combo",
+"set off 4 mines" and more).
+
+![The sea chart](docs/chart.jpg)
+
+## Creatures
+
+Jellies, snappers, urchins, pufferfish and sharks, plus two deep-water kinds:
+
+- **Manta rays** circle the boat and call lightning on where you are about to be. Leave the circle.
+- **Anglerfish** keep their distance and blaze a lure to summon jellies. The lure is the weak
+  spot: a blow that lands on the glowing bulb does double damage.
+
+**Mines** in the Sunken Fleet are a weapon as much as a hazard. Touch one and it blows you up; swat
+one from a distance, or lure a school (or the Admiral) over one, and the blast hits everything near
+it, bosses included.
+
+## Progression
+
+- **Harbor cards.** After each wave pick one of three upgrade cards (17 upgrades in three
+  rarities). Spend pearls to reroll the cards or mend a life ring.
+- **Salvage and the dock.** Every voyage banks salvage. The **Anchors** tab sells four anchors that
+  play differently: the balanced Ship's Anchor, the long and quick Grapnel, the heavy Iron Mace and
+  the lightning-wreathed Storm Lantern.
+- **The workshop.** Nine permanent talents with up to three levels each (a sturdier keel, honed
+  flukes, boss damage, a free reroll...) that apply to every voyage from then on.
+- **Medals and the captain's log.** Eighteen medals (a boss slain, a region cleared untouched, a
+  x25 combo, 8 mines set off...) and a career page with every boss you have beaten.
+- **Deep Dive.** An endless mode: the Kraken falls like any other boss and the sea starts again,
+  bigger and tougher each lap. Your deepest wave is recorded.
+
+![The workshop](docs/workshop.jpg)
+
+Everything you own and wear is saved in the browser.
 
 ## How to play
 
@@ -37,15 +72,11 @@ for 30% more creatures, a tougher boss and half again as much score.
 | `Shift` | Dash (a moment of invulnerability) |
 | `Space` or right click | Tide Surge, once the meter is full (pearls and kills charge it) |
 | `P` / `Esc`, `M` | Pause, mute |
+| Title screen | `Enter` sail the voyage, `X` Deep Dive, `D` the dock |
 
-- **Tap, Wham, Crush:** the anchor's speed sets its damage tier, shown by its trail colour.
-- **Snappers** flash before they dart, **urchins** burst into spines, **puffers** fire spines you can
-  bat back, **sharks** charge in a line and are dazed after.
-- After each wave you pick one of three upgrade cards at the harbor (13 upgrades, three rarities),
-  and can spend pearls to reroll the cards or mend a life ring.
-- Every finished run banks **salvage**. Spend it at **the dock** on four anchors that play
-  differently: the balanced Ship's Anchor, the long and quick Grapnel, the heavy Iron Mace and the
-  lightning-wreathed Storm Lantern. What you own and wear is saved in the browser.
+**Tap, Wham, Crush:** the anchor's speed sets its damage tier, shown by its trail colour. Snappers
+flash before they dart, urchins burst into spines, puffers fire spines you can bat back, sharks
+charge in a line and are dazed after, and the Admiral's cannonballs can be batted back too.
 
 ## Run it
 
@@ -56,6 +87,13 @@ node serve.ts
 Then open <http://localhost:8080> in desktop Chrome. (`game/` is plain static files, so any static
 file server works too.)
 
+Run the headless tests, which load the real game modules and play whole voyages with the
+autopilot:
+
+```sh
+node --test "tests/*.test.mjs"
+```
+
 To build the hand-in folder the way the grader does:
 
 ```sh
@@ -63,8 +101,10 @@ mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 ```
 
 Screenshot scenes are staged by the game itself: add `?shot=start`, `?shot=play`, `?shot=harbor`,
-`?shot=end`, `?shot=chart` or `?shot=dock` to the address (see `shots.json` and
-`game/src/shots.js`).
+`?shot=end`, `?shot=chart`, `?shot=dock`, `?shot=workshop` or `?shot=log` to the address (see
+`shots.json` and `game/src/shots.js`). Each one plays the real game forward with a computer pilot
+and stops on a good frame, using a modest staged save (held in memory, never written to storage)
+so the menus show a few runs' worth of medals and talents.
 
 ## How the code is laid out
 
@@ -74,14 +114,16 @@ Everything the game needs is in `game/`; each file has one job.
 | --- | --- |
 | `src/main.js`, `game.js`, `input.js`, `audio.js` | Boot, fixed-step loop and scene switching, keyboard and mouse, synthesised sound |
 | `src/world.js`, `combat.js`, `waves.js` | The simulation, contact rules and scoring, the wave table and spawn director |
-| `src/regions.js`, `currents.js` | The three regions, and their kelp and whirlpool hazards |
+| `src/regions.js`, `currents.js`, `mines.js` | The four regions, their kelp and whirlpool hazards, and the drifting mines |
 | `src/boat.js`, `anchor.js`, `anchor-types.js` | The player: sailing and dashing, the spring-and-chain anchor, the four anchors |
-| `src/progress.js` | Salvage, owned anchors and best score, saved between visits |
-| `src/enemies/` | One file per creature (jelly, piranha, urchin, puffer, shark) and boss (colossus, eel, kraken): behaviour and art together |
-| `src/upgrades.js`, `pickups.js`, `projectiles.js`, `hazards.js` | The build and cards, pearls and life rings, spines and ink, slams, bolts and shockwave rings |
-| `src/scenes/` | Title, dock, sea chart, play, harbor, game over and victory |
+| `src/upgrades.js`, `talents.js`, `contracts.js`, `medals.js` | Harbor cards, permanent workshop talents, bounty contracts and medals |
+| `src/progress.js` | Salvage, owned anchors, talents, medals and records, saved between visits |
+| `src/enemies/` | One file per creature (jelly, piranha, urchin, puffer, shark, manta, angler) and boss (colossus, eel, admiral, kraken): behaviour and art together |
+| `src/pickups.js`, `projectiles.js`, `hazards.js` | Pearls and life rings, spines, ink and cannonballs, slams, bolts and shockwave rings |
+| `src/scenes/` | Title, dock (anchors, workshop, log), sea chart, play, harbor, game over and victory |
 | `src/render/` | Sea backgrounds, boat and anchor art, HUD, UI kit, icons, chart art, results panel |
 | `src/autopilot.js`, `shots.js` | A computer pilot that powers the title demo, plays the game for testing and stages the screenshots |
+| `tests/` | Headless tests: wave table, deep dive, every creature, mines, talents, contracts, medals, upgrades |
 
 `main.ts`, `serve.ts` and `vendor/makefun-game.ts` are the make.fun hand-in program, a static file
 server for local play, and make.fun's own library (copied unchanged from the bounty kit).

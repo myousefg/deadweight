@@ -19,6 +19,11 @@ export function createBuild() {
     splash: 0,
     lightning: 0,
     salvage: 0,
+    armor: 0,
+    gilded: 0,
+    reaper: 0,
+    thunder: 0,
+    bossDamage: 1,
     levels: {},
   };
 }
@@ -89,6 +94,26 @@ export const UPGRADES = [
     id: 'salvage', name: 'Salvage Crew', icon: 'crate', rarity: 'rare', max: 2,
     text: 'Mend one life ring at every harbor stop.',
     apply(build) { build.salvage += 1; },
+  },
+  {
+    id: 'armor', name: 'Barnacle Plating', icon: 'shield', rarity: 'common', max: 3,
+    text: 'You stay safe 30% longer after taking a hit.',
+    apply(build) { build.armor += 1; },
+  },
+  {
+    id: 'gilded', name: 'Gilded Pearls', icon: 'pearl', rarity: 'rare', max: 3,
+    text: 'Pearls are worth 50% more score.',
+    apply(build) { build.gilded += 1; },
+  },
+  {
+    id: 'reaper', name: 'Reaper’s Edge', icon: 'skull', rarity: 'rare', max: 2,
+    text: 'Small fry under 18% health sink at a touch.',
+    apply(build) { build.reaper += 1; },
+  },
+  {
+    id: 'thunder', name: 'Thunder Slam', icon: 'cloud', rarity: 'epic', max: 2,
+    text: 'Slams call lightning down on the nearest foes.',
+    apply(build) { build.thunder += 1; },
   },
 ];
 

@@ -1,18 +1,21 @@
 // "Lost at sea": the boat has sunk. Shows the run's numbers and offers an instant restart.
 
 import { W, H, PALETTE } from '../config.js';
-import { drawResultsPanel } from '../render/results-panel.js';
+import { drawResultsPanel, drawMedalStrip } from '../render/results-panel.js';
 import { text, title, button, inRect, keycap } from '../render/ui.js';
 
-const AGAIN_BUTTON = { x: W / 2 - 350, y: 556, w: 330, h: 70 };
-const TITLE_BUTTON = { x: W / 2 + 20, y: 556, w: 330, h: 70 };
+const AGAIN_BUTTON = { x: W / 2 - 350, y: 590, w: 330, h: 62 };
+const TITLE_BUTTON = { x: W / 2 + 20, y: 590, w: 330, h: 62 };
 const TIPS = [
   'Faster swings hit harder: whirl the cursor around the boat to build speed.',
   'Sink a shark right after its charge. It is dazed and takes extra damage.',
-  'Bat puffer spines and Kraken ink back with a fast swing.',
+  'Bat puffer spines, cannonballs and Kraken ink back with a fast swing.',
   'Click to slam the anchor: it clears crowds around the target.',
   'Pearls charge the Tide Surge. Keep the meter ready for emergencies.',
   'Dash gives you a moment of invulnerability. Use it to cross a slam circle.',
+  'Swat a mine from afar to blow up the fish around it. Touch one and it blows you.',
+  'Anglerfish call jellies with their lure. Hit the glowing bulb for double damage.',
+  'Spend salvage at the dock: talents last for every voyage to come.',
 ];
 
 export class GameOverScene {
@@ -26,7 +29,7 @@ export class GameOverScene {
 
   restart(game) {
     game.audio.play('select');
-    game.newRun();
+    game.newRun(undefined, game.endless);
     game.switchTo('chart');
   }
 
@@ -57,12 +60,13 @@ export class GameOverScene {
     ctx.save();
     ctx.globalAlpha = slide;
     title(ctx, 'LOST AT SEA', W / 2, 150, 120, PALETTE.coral);
-    text(ctx, 'The anchor drags you under...', W / 2, 196, { size: 26, align: 'center', color: PALETTE.cream, stroke: '#10222d', strokeWidth: 6 });
-    drawResultsPanel(ctx, world, W / 2 - 440, 238, 880, { won: false, newBest: this.newBest, best: game.best, salvage: game.run.salvage });
+    text(ctx, world.endless ? 'The Deep Dive swallows another captain...' : 'The anchor drags you under...', W / 2, 196, { size: 26, align: 'center', color: PALETTE.cream, stroke: '#10222d', strokeWidth: 6 });
+    drawResultsPanel(ctx, world, W / 2 - 440, 228, 880, { won: false, newBest: this.newBest, best: game.best, salvage: game.run.salvage });
+    drawMedalStrip(ctx, world, game.run.medals || [], game.progress.medalCount, 530);
     button(ctx, AGAIN_BUTTON, 'SAIL AGAIN', { primary: true, hover: this.hover === 'again', size: 32 });
     button(ctx, TITLE_BUTTON, 'TITLE', { hover: this.hover === 'title', size: 32 });
-    keycap(ctx, 'ENTER', AGAIN_BUTTON.x + AGAIN_BUTTON.w / 2 - 32, AGAIN_BUTTON.y + AGAIN_BUTTON.h + 26, { size: 14 });
-    keycap(ctx, 'T', TITLE_BUTTON.x + TITLE_BUTTON.w / 2 - 8, TITLE_BUTTON.y + TITLE_BUTTON.h + 26, { size: 14 });
+    keycap(ctx, 'ENTER', AGAIN_BUTTON.x + AGAIN_BUTTON.w / 2 - 32, AGAIN_BUTTON.y + AGAIN_BUTTON.h + 22, { size: 14 });
+    keycap(ctx, 'T', TITLE_BUTTON.x + TITLE_BUTTON.w / 2 - 8, TITLE_BUTTON.y + TITLE_BUTTON.h + 22, { size: 14 });
     text(ctx, `Tip: ${this.tip}`, W / 2, H - 18, { size: 17, align: 'center', weight: 'normal', color: PALETTE.pearl });
     ctx.restore();
   }

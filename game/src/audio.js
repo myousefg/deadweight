@@ -190,6 +190,18 @@ class AudioEngine {
         this.tone({ type: 'sine', freq: 95, freqEnd: 30, dur: 0.6, vol: 0.75 });
         this.burst({ dur: 0.45, vol: 0.5, freq: 900, freqEnd: 90 });
         break;
+      case 'cannon':
+        this.burst({ dur: 0.35, vol: 0.5, filter: 'lowpass', freq: 1400, freqEnd: 90 });
+        this.tone({ type: 'sine', freq: 130, freqEnd: 45, dur: 0.35, vol: 0.5 });
+        break;
+      case 'boom':
+        this.burst({ dur: 0.7, vol: 0.7, filter: 'lowpass', freq: 2200, freqEnd: 60 });
+        this.tone({ type: 'sine', freq: 110, freqEnd: 28, dur: 0.7, vol: 0.8 });
+        this.tone({ type: 'sawtooth', freq: 200, freqEnd: 50, dur: 0.3, vol: 0.25 });
+        break;
+      case 'medal':
+        [784, 988, 1175, 1568].forEach((freq, index) => this.tone({ type: 'triangle', freq, dur: 0.28, vol: 0.26, delay: index * 0.07 }));
+        break;
       case 'unlock':
         [523, 659, 784, 988, 1175].forEach((freq, index) => this.tone({ type: 'triangle', freq, dur: 0.3, vol: 0.28, delay: index * 0.09 }));
         break;

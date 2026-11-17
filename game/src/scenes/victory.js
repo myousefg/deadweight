@@ -3,11 +3,11 @@
 
 import { W, H, PALETTE } from '../config.js';
 import { TAU } from '../math.js';
-import { drawResultsPanel } from '../render/results-panel.js';
+import { drawResultsPanel, drawMedalStrip } from '../render/results-panel.js';
 import { text, title, button, inRect, keycap } from '../render/ui.js';
 
-const AGAIN_BUTTON = { x: W / 2 - 350, y: 556, w: 330, h: 70 };
-const TITLE_BUTTON = { x: W / 2 + 20, y: 556, w: 330, h: 70 };
+const AGAIN_BUTTON = { x: W / 2 - 350, y: 590, w: 330, h: 62 };
+const TITLE_BUTTON = { x: W / 2 + 20, y: 590, w: 330, h: 62 };
 
 export class VictoryScene {
   enter(game) {
@@ -20,7 +20,7 @@ export class VictoryScene {
 
   restart(game) {
     game.audio.play('select');
-    game.newRun();
+    game.newRun(undefined, game.endless);
     game.switchTo('chart');
   }
 
@@ -72,11 +72,12 @@ export class VictoryScene {
     text(ctx, 'The Kraken sinks beneath the waves. You are the legend of this harbor.', W / 2, 196, {
       size: 24, align: 'center', color: PALETTE.cream, stroke: '#10222d', strokeWidth: 6,
     });
-    drawResultsPanel(ctx, world, W / 2 - 440, 238, 880, { won: true, newBest: this.newBest, best: game.best, salvage: game.run.salvage });
+    drawResultsPanel(ctx, world, W / 2 - 440, 228, 880, { won: true, newBest: this.newBest, best: game.best, salvage: game.run.salvage });
+    drawMedalStrip(ctx, world, game.run.medals || [], game.progress.medalCount, 530);
     button(ctx, AGAIN_BUTTON, 'SAIL AGAIN', { primary: true, hover: this.hover === 'again', size: 32 });
     button(ctx, TITLE_BUTTON, 'TITLE', { hover: this.hover === 'title', size: 32 });
-    keycap(ctx, 'ENTER', AGAIN_BUTTON.x + AGAIN_BUTTON.w / 2 - 32, AGAIN_BUTTON.y + AGAIN_BUTTON.h + 26, { size: 14 });
-    keycap(ctx, 'T', TITLE_BUTTON.x + TITLE_BUTTON.w / 2 - 8, TITLE_BUTTON.y + TITLE_BUTTON.h + 26, { size: 14 });
+    keycap(ctx, 'ENTER', AGAIN_BUTTON.x + AGAIN_BUTTON.w / 2 - 32, AGAIN_BUTTON.y + AGAIN_BUTTON.h + 22, { size: 14 });
+    keycap(ctx, 'T', TITLE_BUTTON.x + TITLE_BUTTON.w / 2 - 8, TITLE_BUTTON.y + TITLE_BUTTON.h + 22, { size: 14 });
     text(ctx, 'Thanks for sailing Deadweight.', W / 2, H - 18, { size: 17, align: 'center', weight: 'normal', color: PALETTE.pearl });
     ctx.restore();
   }

@@ -79,6 +79,18 @@ export function createAutopilot({ home = { x: W / 2, y: H * 0.58 }, homePull = 1
       }
     }
     for (const enemy of world.enemies) {
+      if (enemy.id === 'admiral' && enemy.state === 'lanes') {
+        // Slip out past the bow or stern: the cannon lanes only cover the ship's own length.
+        const cos = Math.cos(enemy.heading);
+        const sin = Math.sin(enemy.heading);
+        const along = (boat.x - enemy.x) * cos + (boat.y - enemy.y) * sin;
+        if (Math.abs(along) < 185) {
+          const away = along >= 0 ? 1 : -1;
+          moveX += cos * away * 3.4;
+          moveY += sin * away * 3.4;
+        }
+        continue;
+      }
       if (enemy.state === 'telegraph' && enemy.sweep) {
         // Stay out of the red band the eel is about to sweep through.
         const across = enemy.sweep.horizontal ? boat.y - enemy.sweep.y : boat.x - enemy.sweep.x;
@@ -107,6 +119,15 @@ export function createAutopilot({ home = { x: W / 2, y: H * 0.58 }, homePull = 1
       if (gap < zone.r * 0.75) {
         moveX += (dx / gap) * 3;
         moveY += (dy / gap) * 3;
+      }
+    }
+    for (const mine of world.mines) {
+      const dx = boat.x - mine.x;
+      const dy = boat.y - mine.y;
+      const gap = Math.hypot(dx, dy) || 1;
+      if (gap < 130) {
+        moveX += (dx / gap) * 3 * (1 - gap / 130);
+        moveY += (dy / gap) * 3 * (1 - gap / 130);
       }
     }
     moveX += ((home.x - boat.x) / W) * homePull;

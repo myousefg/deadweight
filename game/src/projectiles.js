@@ -47,6 +47,25 @@ export function drawProjectiles(ctx, world) {
       ctx.beginPath();
       ctx.arc(-p.r * 0.3, -p.r * 0.3, p.r * 0.32, 0, TAU);
       ctx.fill();
+    } else if (p.kind === 'ball') {
+      ctx.fillStyle = 'rgba(2, 22, 32, 0.3)';
+      ctx.beginPath();
+      ctx.ellipse(3, 9, p.r * 1.1, p.r * 0.6, 0, 0, TAU);
+      ctx.fill();
+      const iron = ctx.createRadialGradient(-p.r * 0.35, -p.r * 0.35, 1, 0, 0, p.r);
+      iron.addColorStop(0, p.friendly ? '#eafff6' : '#8c97a3');
+      iron.addColorStop(1, p.friendly ? PALETTE.mint : '#12161c');
+      ctx.fillStyle = iron;
+      ctx.beginPath();
+      ctx.arc(0, 0, p.r, 0, TAU);
+      ctx.fill();
+      ctx.strokeStyle = p.friendly ? '#ffffff' : '#ff8a3d';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#ffb347';
+      ctx.beginPath();
+      ctx.arc(-Math.sign(p.vx || 1) * p.r * 0.9 * 0.2 - p.vx * 0.012, -p.vy * 0.012, 2.6, 0, TAU);
+      ctx.fill();
     } else {
       ctx.rotate(Math.atan2(p.vy, p.vx));
       const body = p.friendly ? PALETTE.mint : '#fff0b8';

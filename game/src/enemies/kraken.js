@@ -95,6 +95,7 @@ export const kraken = {
   id: 'kraken',
   name: 'The Kraken',
   boss: true,
+  notches: [0.66, 0.33],
   radius: 86,
   hp: 170,
   mass: 90,
@@ -103,7 +104,7 @@ export const kraken = {
   pearls: [0, 0],
 
   init(e, world) {
-    e.hp = Math.round(e.hp * (world.stormy ? 1.15 : 1));
+    e.hp = world.bossHp(170);
     e.maxHp = e.hp;
     e.x = W / 2;
     e.y = -180;

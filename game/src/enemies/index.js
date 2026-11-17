@@ -8,8 +8,11 @@ import { shark } from './shark.js';
 import { colossus } from './colossus.js';
 import { eel } from './eel.js';
 import { kraken } from './kraken.js';
+import { angler } from './angler.js';
+import { manta } from './manta.js';
+import { admiral } from './admiral.js';
 
-export const ENEMY_TYPES = { jelly, piranha, urchin, puffer, shark, colossus, eel, kraken };
+export const ENEMY_TYPES = { jelly, piranha, urchin, puffer, shark, manta, angler, colossus, eel, admiral, kraken };
 
 /** Budget points each ordinary kind spends when a wave is composed, and how many spawn at once. */
 export const ENEMY_COST = {
@@ -18,4 +21,6 @@ export const ENEMY_COST = {
   urchin: { cost: 2, pack: 1 },
   puffer: { cost: 3, pack: 1 },
   shark: { cost: 5, pack: 1 },
+  manta: { cost: 4, pack: 1 },
+  angler: { cost: 5, pack: 1 },
 };

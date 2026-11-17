@@ -5,11 +5,12 @@ import { PALETTE } from '../config.js';
 import { TAU } from '../math.js';
 import { createRng } from '../random.js';
 import { text } from './ui.js';
-import { REGIONS } from '../regions.js';
+import { REGIONS, REGION_COUNT } from '../regions.js';
 
 export const REGION_COLORS = {
   shallows: { top: '#37b8bd', bottom: '#127184', accent: '#ffd66b' },
   kelp: { top: '#5fbf7c', bottom: '#1f6b57', accent: '#b9ff9a' },
+  fleet: { top: '#4fa6a0', bottom: '#1b4a55', accent: '#9bffe0' },
   abyss: { top: '#3d57c9', bottom: '#0a1747', accent: '#8fe8ff' },
 };
 
@@ -40,6 +41,21 @@ export function drawRegionIcon(ctx, id, x, y, size, color = '#ffffff') {
       ctx.quadraticCurveTo((dx + lean * 2) * size, size * (0.5 - height * 0.5), (dx + lean) * size, size * (0.5 - height));
       ctx.stroke();
     }
+  } else if (id === 'fleet') {
+    ctx.beginPath();
+    ctx.moveTo(-size * 0.44, size * 0.14);
+    ctx.lineTo(size * 0.44, size * 0.14);
+    ctx.lineTo(size * 0.3, size * 0.38);
+    ctx.lineTo(-size * 0.3, size * 0.38);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, size * 0.14);
+    ctx.lineTo(size * 0.04, -size * 0.46);
+    ctx.moveTo(size * 0.04, -size * 0.4);
+    ctx.lineTo(size * 0.36, -size * 0.04);
+    ctx.lineTo(size * 0.04, -size * 0.04);
+    ctx.stroke();
   } else {
     ctx.beginPath();
     for (let step = 0; step <= 60; step += 1) {
@@ -96,6 +112,23 @@ export function drawBossIcon(ctx, bossId, x, y, size, color = '#ffffff', shade =
     ctx.fillStyle = shade;
     ctx.beginPath();
     ctx.arc(size * 0.4, -size * 0.2, size * 0.04, 0, TAU);
+    ctx.fill();
+  } else if (bossId === 'admiral') {
+    ctx.beginPath();
+    ctx.moveTo(size * 0.48, 0);
+    ctx.bezierCurveTo(size * 0.26, -size * 0.2, size * 0.14, -size * 0.24, -size * 0.1, -size * 0.24);
+    ctx.lineTo(-size * 0.38, -size * 0.2);
+    ctx.lineTo(-size * 0.38, size * 0.2);
+    ctx.lineTo(-size * 0.1, size * 0.24);
+    ctx.bezierCurveTo(size * 0.14, size * 0.24, size * 0.26, size * 0.2, size * 0.48, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = shade;
+    for (const mx of [0.22, -0.02, -0.26]) {
+      ctx.fillRect(size * mx - size * 0.025, -size * 0.17, size * 0.05, size * 0.34);
+    }
+    ctx.beginPath();
+    ctx.arc(size * 0.34, 0, size * 0.04, 0, TAU);
     ctx.fill();
   } else {
     ctx.beginPath();
@@ -172,7 +205,7 @@ export function drawCompass(ctx, x, y, radius, time) {
 }
 
 /**
- * The three regions as a row of nodes joined by a dashed route. Regions before `current` are
+ * The four regions as a row of nodes joined by a dashed route. Regions before `current` are
  * cleared (gold), `current` pulses, the rest are ahead. Used small, in the harbor's corner.
  */
 export function drawRouteStrip(ctx, x, y, spacing, current, time) {
@@ -183,10 +216,10 @@ export function drawRouteStrip(ctx, x, y, spacing, current, time) {
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.moveTo(x, y);
-  ctx.lineTo(x + spacing * 2, y);
+  ctx.lineTo(x + spacing * (REGION_COUNT - 1), y);
   ctx.stroke();
   ctx.setLineDash([]);
-  for (let index = 1; index <= 3; index += 1) {
+  for (let index = 1; index <= REGION_COUNT; index += 1) {
     const region = REGIONS[index];
     const cx = x + (index - 1) * spacing;
     const colors = REGION_COLORS[region.id];
@@ -209,7 +242,7 @@ export function drawRouteStrip(ctx, x, y, spacing, current, time) {
     ctx.stroke();
     drawRegionIcon(ctx, region.id, 0, 0, 30, '#ffffff');
     ctx.restore();
-    text(ctx, region.name.replace('Sunlit ', ''), cx, y + 46, { size: 14, align: 'center', color: here ? PALETTE.gold : PALETTE.pearl, stroke: 'rgba(2,22,32,0.9)', strokeWidth: 3 });
+    text(ctx, region.name.replace('Sunlit ', '').replace('Sunken ', ''), cx, y + 46, { size: 14, align: 'center', color: here ? PALETTE.gold : PALETTE.pearl, stroke: 'rgba(2,22,32,0.9)', strokeWidth: 3 });
     if (cleared) {
       text(ctx, '✓', cx + 20, y - 14, { size: 22, align: 'center', color: PALETTE.mint, stroke: 'rgba(2,22,32,0.9)', strokeWidth: 4 });
     }

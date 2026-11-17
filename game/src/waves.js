@@ -1,30 +1,45 @@
 // The wave table and the director that turns a wave's budget into a schedule of spawns.
-// Nine waves in three regions: two ordinary waves, then that region's boss.
+// Twelve waves in four regions: two ordinary waves, then that region's boss. The Deep Dive
+// reuses the same table lap after lap with a bigger budget and tougher bosses.
 
 import { W, H } from './config.js';
 import { ENEMY_COST } from './enemies/index.js';
 
-export const FINAL_WAVE = 9;
+export const FINAL_WAVE = 12;
 const ALIVE_CAP = 22;
 /** How many more creatures a stormy sea brings. */
 const STORM_BUDGET = 1.3;
+/** Extra budget per lap of the Deep Dive. */
+const LAP_BUDGET = 0.32;
 
-const ALL = ['jelly', 'piranha', 'urchin', 'puffer', 'shark'];
+const ALL = ['jelly', 'piranha', 'urchin', 'puffer', 'shark', 'manta', 'angler'];
 
 export const WAVES = [
   null,
-  { name: 'Calm Shallows', budget: 7, types: ALL.slice(0, 1), span: 20, hint: 'Swing the anchor through them. Speed is damage.' },
-  { name: 'Snapping Waters', budget: 11, types: ALL.slice(0, 2), span: 24, hint: 'Snappers flash before they dart. Sidestep, then swat.' },
+  { name: 'Calm Shallows', budget: 7, types: ['jelly'], span: 20, hint: 'Swing the anchor through them. Speed is damage.' },
+  { name: 'Snapping Waters', budget: 11, types: ['jelly', 'piranha'], span: 24, hint: 'Snappers flash before they dart. Sidestep, then swat.' },
   { name: 'Crab Rock', boss: 'colossus', hint: 'Its armour turns blows aside. Dash through the shockwave; hit it when dazed.' },
-  { name: 'Tangled Fronds', budget: 16, types: ALL.slice(0, 3), span: 26, hint: 'Kelp slows boats and fish. Urchins burst into spines.' },
-  { name: 'Puffer Cove', budget: 22, types: ALL.slice(0, 4), span: 28, hint: 'Bat a puffer’s spines back with a fast swing.' },
+  { name: 'Tangled Fronds', budget: 16, types: ['jelly', 'piranha', 'urchin'], span: 26, hint: 'Kelp slows boats and fish. Urchins burst into spines.' },
+  { name: 'Puffer Cove', budget: 22, types: ['jelly', 'piranha', 'urchin', 'puffer'], span: 28, hint: 'Bat a puffer’s spines back with a fast swing.' },
   { name: 'The Queen’s Channel', boss: 'eel', hint: 'Hit any part of her body. Dodge the blue circles and the red sweeps.' },
-  { name: 'Shark Alley', budget: 30, types: ALL, span: 30, hint: 'Whirlpools drag you in. Sharks charge in a line.' },
-  { name: 'Black Currents', budget: 40, types: ALL, span: 34, hint: 'Keep your combo alive: chains multiply the score.' },
+  { name: 'Wreck Row', budget: 26, types: ['jelly', 'piranha', 'urchin', 'manta'], span: 28, hint: 'Mines blow up on touch. Swat one from afar to catch the fish around it.' },
+  { name: 'Ghost Lanes', budget: 33, types: ['jelly', 'piranha', 'puffer', 'shark', 'manta'], span: 32, hint: 'Mantas call lightning on where you stand. Keep moving.' },
+  { name: 'The Admiral’s Fleet', boss: 'admiral', hint: 'Slip between its cannon lanes. Lure it into mines and ram-bait it into a wall.' },
+  { name: 'Sunless Trench', budget: 40, types: ['jelly', 'piranha', 'urchin', 'puffer', 'shark', 'angler'], span: 34, hint: 'Whirlpools drag you in. Anglers call jellies: sink them first.' },
+  { name: 'Black Currents', budget: 48, types: ALL, span: 36, hint: 'Keep your combo alive: chains multiply the score.' },
   { name: 'Heart of the Abyss', boss: 'kraken', hint: 'Dodge the red circles. Hit the body.' },
 ];
 
-const TYPE_WEIGHT = { jelly: 5, piranha: 2.2, urchin: 2, puffer: 2, shark: 1.2 };
+/** The definition of any wave number, including the Deep Dive laps past the twelfth. */
+export function waveDef(wave) {
+  if (wave <= FINAL_WAVE) return WAVES[wave];
+  const base = WAVES[((wave - 1) % FINAL_WAVE) + 1];
+  const lap = Math.floor((wave - 1) / FINAL_WAVE);
+  if (base.boss) return base;
+  return { ...base, budget: Math.round(base.budget * (1 + LAP_BUDGET * lap)), span: base.span + lap * 2 };
+}
+
+const TYPE_WEIGHT = { jelly: 5, piranha: 2.2, urchin: 2, puffer: 2, shark: 1.2, manta: 1.7, angler: 1.2 };
 
 /** A spawn point just outside the screen, far from the boat. */
 export function edgePosition(rng, boat) {
@@ -56,7 +71,7 @@ export class WaveDirector {
 
   begin(wave) {
     const { rng, stormy } = this.world;
-    const def = WAVES[wave];
+    const def = waveDef(wave);
     this.wave = wave;
     this.clock = 0;
     this.schedule = [];

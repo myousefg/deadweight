@@ -36,6 +36,7 @@ export const colossus = {
   id: 'colossus',
   name: 'Hermit Colossus',
   boss: true,
+  notches: [0.5],
   radius: 66,
   hp: 100,
   mass: 90,
@@ -44,7 +45,7 @@ export const colossus = {
   pearls: [0, 0],
 
   init(e, world) {
-    e.hp = Math.round(100 * (world.stormy ? 1.15 : 1));
+    e.hp = world.bossHp(100);
     e.maxHp = e.hp;
     e.x = W / 2;
     e.y = -170;

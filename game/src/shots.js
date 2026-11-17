@@ -1,13 +1,34 @@
-// Screenshot scenes behind ?shot=start|play|harbor|end|chart|dock. Each one plays the real game
-// forward with the autopilot (see autopilot.js) and stops on a good frame, so the picture is what
-// a short run of the actual code produces and the same seed always gives the same frame.
+// Screenshot scenes behind ?shot=start|play|harbor|end|chart|dock|workshop|log. Each one plays the
+// real game forward with the autopilot (see autopilot.js) and stops on a good frame, so the picture
+// is what a short run of the actual code produces and the same seed always gives the same frame.
+// The saved career is replaced by a modest staged one (in memory only, never written to storage),
+// so menus show their medals and talents instead of an empty first-time save.
 
 import { STEP } from './config.js';
 import { createAutopilot } from './autopilot.js';
 import { FINAL_WAVE } from './waves.js';
 import { applyUpgrade, rollChoices, upgradeById } from './upgrades.js';
+import { REGIONS, isRegionStart, regionIndexOf } from './regions.js';
+import { offerContracts, takeContract, contractById } from './contracts.js';
 
 const MAX_WAVE_SECONDS = 200;
+
+/** A few runs into a career: enough saved progress that the menus have something to show. */
+const STAGED_CAREER = {
+  best: 43530,
+  bestDive: 14,
+  salvage: 640,
+  unlocked: ['ship', 'grapnel'],
+  selected: 'ship',
+  runs: 7,
+  wins: 2,
+  bosses: 13,
+  kills: 612,
+  contracts: 4,
+  talents: { keel: 1, pockets: 2, flukes: 1, bounty: 1, reader: 1 },
+  medals: { crab: 2, eel: 3, deckhand: 1, untouched: 5, combo: 6 },
+  bossKills: { colossus: 5, eel: 3, admiral: 1 },
+};
 
 function giveBuild(world, ids) {
   for (const id of ids) applyUpgrade(world.build, world.boat, upgradeById(id));
@@ -15,14 +36,24 @@ function giveBuild(world, ids) {
 
 /** A fresh run with its first wave begun, as the sea chart does when the player sets sail. */
 function beginRun(game, seed) {
-  const world = game.newRun(seed);
+  const world = game.newRun(seed, false);
+  takeFirstContract(world, 1);
   world.startWave(1);
   return world;
 }
 
+/** What the chart does when the player takes the first contract on offer. */
+function takeFirstContract(world, wave) {
+  const offers = offerContracts(world.rng, REGIONS[regionIndexOf(wave)].id);
+  takeContract(world, offers[0]);
+}
+
 /** Run one wave to its end (cleared, won or lost) with the autopilot; returns the final state. */
 function playWave(world, pilot, wave) {
-  if (world.wave !== wave) world.startWave(wave);
+  if (world.wave !== wave) {
+    if (isRegionStart(wave)) takeFirstContract(world, wave);
+    world.startWave(wave);
+  }
   for (let t = 0; t < MAX_WAVE_SECONDS; t += STEP) {
     world.update(STEP, pilot(world, STEP));
     if (world.state === 'cleared' || world.state === 'won' || world.state === 'lost') break;
@@ -45,33 +76,47 @@ function harborVisit(world) {
 /** How good a frame this is for a screenshot: a boss on screen, strikes coming, the anchor mid-blow. */
 function frameScore(world) {
   if (world.state !== 'fight' || world.effects.hurt > 0.02 || world.boat.invuln > 0) return -1;
+  // Keep the boat clear of the HUD text and the screen edges.
+  if (world.boat.y < 230 || world.boat.y > 650 || world.boat.x < 120 || world.boat.x > 1160) return -1;
   const boss = world.enemies.find((enemy) => enemy.boss);
-  const onScreen = (part) => part.x > 30 && part.x < 1250 && part.y > 110 && part.y < 690;
+  const onScreen = (part) => part.x > 30 && part.x < 1250 && part.y > 150 && part.y < 690;
   const parts = boss && boss.parts ? boss.parts.filter(onScreen).length : boss ? 1 : 0;
   const telegraphs = world.hazards.filter((hazard) => hazard.kind === 'slam' && !hazard.struck).length;
   const tier = world.anchor.tier;
   const near = boss && boss.parts
     ? Math.min(...boss.parts.map((part) => Math.hypot(part.x - world.boat.x, part.y - world.boat.y)))
     : 999;
+  const fraction = boss ? boss.hp / boss.maxHp : 1;
   return parts * 2
+    + (boss && boss.y > 230 && boss.y < 520 ? 5 : 0)
+    + (fraction > 0.4 && fraction < 0.92 ? 5 : 0)
     + Math.min(telegraphs, 3) * 4
     + (tier >= 3 ? 6 : tier === 2 ? 4 : tier === 1 ? 1 : 0)
-    + (near < 260 ? 4 : 0)
-    + (boss && boss.state === 'coil' ? 5 : 0)
+    + (near < 300 ? 4 : 0)
+    + (boss && boss.state === 'lanes' && boss.timer < 0.6 ? 16 : 0)
+    + (boss && (boss.state === 'coil' || boss.state === 'aim') ? 8 : 0)
+    + Math.min(world.projectiles.length, 8)
+    + Math.min(world.mines.length, 3) * 2
     + Math.min(world.particles.list.length, 300) / 60;
 }
 
-const WARMUP_STEPS = Math.round(9 / STEP);
-const SCAN_STEPS = Math.round(14 / STEP);
+const WARMUP_STEPS = Math.round(5 / STEP);
+const SCAN_STEPS = Math.round(16 / STEP);
 
+/** Mid-voyage, mid-boss: the Drowned Admiral on stormy seas with a well-grown build. */
 function startPlayRun(game, seed) {
-  const world = beginRun(game, seed);
-  giveBuild(world, ['heavy', 'heavy', 'chain', 'splash', 'lightning', 'hull', 'spring']);
-  world.wave = 5;
-  world.stats.score = 19800;
-  world.stats.bosses = 1;
+  const world = game.newRun(seed, false);
+  giveBuild(world, ['heavy', 'heavy', 'chain', 'splash', 'lightning', 'hull', 'spring', 'armor', 'thunder', 'gilded', 'reaper', 'dash', 'magnet']);
+  world.wave = 8;
+  world.stats.score = 31800;
+  world.stats.bosses = 2;
+  world.stats.bossIds = ['colossus', 'eel'];
+  world.stats.kills = 96;
+  world.purse = 64;
   world.stormy = true;
-  world.startWave(6);
+  takeContract(world, contractById('chain'));
+  world.contract.bestCombo = 7;
+  world.startWave(9);
   return world;
 }
 
@@ -102,12 +147,12 @@ function stageHarbor(game, seed) {
   world.godMode = true;
   const pilot = createAutopilot();
   giveBuild(world, ['heavy']);
-  for (let wave = 1; wave <= 3; wave += 1) {
+  for (let wave = 1; wave <= 6; wave += 1) {
     if (playWave(world, pilot, wave) !== 'cleared') break;
-    if (wave < 3) harborVisit(world);
+    if (wave < 6) harborVisit(world);
   }
   world.godMode = false;
-  world.purse = Math.max(world.purse, 38);
+  world.purse = Math.max(world.purse, 52);
   game.switchTo('harbor');
   // Let the cards slide in and old popups fade, then rest the cursor on the middle card.
   const total = 3 * 300 + 2 * 34;
@@ -133,7 +178,7 @@ function stageEnd(game, seed) {
 /** A title-screen frame with several creatures close around the demo boat and the anchor swinging. */
 function titleFrameScore(world) {
   const { boat } = world;
-  const near = world.enemies.filter((e) => Math.hypot(e.x - boat.x, e.y - boat.y) < 260 && e.x > 650 && e.y > 80 && e.y < 690);
+  const near = world.enemies.filter((e) => Math.hypot(e.x - boat.x, e.y - boat.y) < 260 && e.x > 650 && e.y > 180 && e.y < 690);
   const kinds = new Set(near.map((e) => e.id)).size;
   const centred = Math.hypot(boat.x - 930, boat.y - 450) / 60;
   return near.length * 2 + kinds * 2 + (world.anchor.tier >= 2 ? 4 : world.anchor.tier === 1 ? 1 : 0) - centred;
@@ -154,6 +199,7 @@ function stageTitle(game) {
 }
 
 export function stageShot(game, name, seed = 1) {
+  game.progress.stage(STAGED_CAREER);
   if (name === 'start') {
     stageTitle(game);
   } else if (name === 'play') {
@@ -164,12 +210,16 @@ export function stageShot(game, name, seed = 1) {
     stageEnd(game, seed);
   } else if (name === 'chart') {
     beginRun(game, seed);
-    game.run.world.wave = 3;
+    game.run.world.wave = 6;
     game.switchTo('chart');
     game.advance(0.6);
   } else if (name === 'dock') {
     game.progress.data.salvage = Math.max(game.progress.data.salvage, 1000);
     game.switchTo('dock');
+    game.advance(0.6);
+  } else if (name === 'workshop' || name === 'log') {
+    game.progress.data.salvage = Math.max(game.progress.data.salvage, 700);
+    game.switchTo('dock', { tab: name });
     game.advance(0.6);
   }
   game.controlOverride = null;

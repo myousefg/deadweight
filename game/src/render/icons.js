@@ -164,6 +164,171 @@ const ICONS = {
     ctx.lineTo(-12, 12);
     ctx.stroke();
   },
+  skull(ctx) {
+    ctx.beginPath();
+    ctx.arc(0, -3, 12, Math.PI * 0.85, Math.PI * 2.15);
+    ctx.lineTo(7, 12);
+    ctx.lineTo(-7, 12);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(-5, -3, 3, 0, TAU);
+    ctx.arc(5, -3, 3, 0, TAU);
+    ctx.moveTo(-3, 12);
+    ctx.lineTo(-3, 16);
+    ctx.moveTo(3, 12);
+    ctx.lineTo(3, 16);
+    ctx.stroke();
+  },
+  cloud(ctx) {
+    ctx.beginPath();
+    ctx.moveTo(-14, 4);
+    ctx.quadraticCurveTo(-18, -8, -6, -8);
+    ctx.quadraticCurveTo(-2, -18, 8, -10);
+    ctx.quadraticCurveTo(18, -8, 14, 4);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(2, 5);
+    ctx.lineTo(-3, 12);
+    ctx.lineTo(3, 12);
+    ctx.lineTo(-2, 19);
+    ctx.stroke();
+  },
+  heart(ctx) {
+    ctx.beginPath();
+    ctx.moveTo(0, 14);
+    ctx.bezierCurveTo(-20, 2, -14, -14, 0, -6);
+    ctx.bezierCurveTo(14, -14, 20, 2, 0, 14);
+    ctx.stroke();
+  },
+  coin(ctx) {
+    ctx.beginPath();
+    ctx.arc(0, 0, 14, 0, TAU);
+    ctx.moveTo(8, 0);
+    ctx.arc(0, 0, 8, 0, TAU);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, -4);
+    ctx.lineTo(0, 4);
+    ctx.stroke();
+  },
+  star(ctx) {
+    ctx.beginPath();
+    for (let i = 0; i < 10; i += 1) {
+      const r = i % 2 ? 6 : 15;
+      const a = (i / 10) * TAU - Math.PI / 2;
+      if (i === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+      else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    }
+    ctx.closePath();
+    ctx.stroke();
+  },
+  medal(ctx) {
+    ctx.beginPath();
+    ctx.arc(0, 4, 10, 0, TAU);
+    ctx.moveTo(-7, -5);
+    ctx.lineTo(-10, -17);
+    ctx.lineTo(-2, -12);
+    ctx.moveTo(7, -5);
+    ctx.lineTo(10, -17);
+    ctx.lineTo(2, -12);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, -1);
+    ctx.lineTo(0, 9);
+    ctx.stroke();
+  },
+  flag(ctx) {
+    ctx.beginPath();
+    ctx.moveTo(-9, 17);
+    ctx.lineTo(-9, -16);
+    ctx.lineTo(13, -9);
+    ctx.lineTo(-9, 0);
+    ctx.stroke();
+  },
+  mine(ctx) {
+    ctx.beginPath();
+    ctx.arc(0, 0, 9, 0, TAU);
+    for (let i = 0; i < 8; i += 1) {
+      const a = (i / 8) * TAU;
+      ctx.moveTo(Math.cos(a) * 9, Math.sin(a) * 9);
+      ctx.lineTo(Math.cos(a) * 16, Math.sin(a) * 16);
+    }
+    ctx.stroke();
+  },
+  fish(ctx) {
+    ctx.beginPath();
+    ctx.ellipse(-2, 0, 13, 8, 0, 0, TAU);
+    ctx.moveTo(10, 0);
+    ctx.lineTo(18, -8);
+    ctx.lineTo(18, 8);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(-8, -2, 1.6, 0, TAU);
+    ctx.stroke();
+  },
+  lock(ctx) {
+    ctx.strokeRect(-10, -2, 20, 15);
+    ctx.beginPath();
+    ctx.arc(0, -3, 7, Math.PI, 0);
+    ctx.stroke();
+  },
+  trophy(ctx) {
+    ctx.beginPath();
+    ctx.moveTo(-10, -14);
+    ctx.lineTo(10, -14);
+    ctx.lineTo(8, 0);
+    ctx.quadraticCurveTo(0, 8, -8, 0);
+    ctx.closePath();
+    ctx.moveTo(0, 6);
+    ctx.lineTo(0, 13);
+    ctx.moveTo(-7, 14);
+    ctx.lineTo(7, 14);
+    ctx.stroke();
+  },
+  compass(ctx) {
+    ctx.beginPath();
+    ctx.arc(0, 0, 15, 0, TAU);
+    ctx.moveTo(0, -11);
+    ctx.lineTo(4, 0);
+    ctx.lineTo(0, 11);
+    ctx.lineTo(-4, 0);
+    ctx.closePath();
+    ctx.stroke();
+  },
+  boat(ctx) {
+    ctx.beginPath();
+    ctx.moveTo(-15, 6);
+    ctx.lineTo(15, 6);
+    ctx.lineTo(9, 14);
+    ctx.lineTo(-9, 14);
+    ctx.closePath();
+    ctx.moveTo(0, 6);
+    ctx.lineTo(0, -16);
+    ctx.lineTo(11, 2);
+    ctx.lineTo(0, 2);
+    ctx.stroke();
+  },
+  hourglass(ctx) {
+    ctx.beginPath();
+    ctx.moveTo(-9, -15);
+    ctx.lineTo(9, -15);
+    ctx.lineTo(-9, 15);
+    ctx.lineTo(9, 15);
+    ctx.closePath();
+    ctx.stroke();
+  },
+  eye(ctx) {
+    ctx.beginPath();
+    ctx.moveTo(-17, 0);
+    ctx.quadraticCurveTo(0, -17, 17, 0);
+    ctx.quadraticCurveTo(0, 17, -17, 0);
+    ctx.moveTo(5, 0);
+    ctx.arc(0, 0, 5, 0, TAU);
+    ctx.stroke();
+  },
 };
 
 export function drawIcon(ctx, name, x, y, size, color = PALETTE.cream) {

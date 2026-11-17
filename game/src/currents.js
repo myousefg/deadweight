@@ -1,5 +1,5 @@
 // Region hazards that live in the water itself. The Kelp Maze has thick patches of kelp that slow
-// the boat and the fish in them; the Abyss has drifting whirlpools that drag the boat toward a
+// the boat and the fish in them; the Abyss (region 4) has drifting whirlpools that drag the boat toward a
 // harmful core. Dashing breaks free of either.
 
 import { W, H } from './config.js';
@@ -43,7 +43,7 @@ export function createZones(world, wave) {
       zones.push({ kind: 'kelp', x: at.x, y: at.y, r: radius, blades });
     }
   }
-  if (region === 3 && !boss) {
+  if (region === 4 && !boss) {
     for (let i = 0; i < 2; i += 1) {
       const at = place(160);
       zones.push({

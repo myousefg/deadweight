@@ -4,13 +4,13 @@
 import { W, H, PALETTE, HARBOR } from '../config.js';
 import { TAU, formatScore } from '../math.js';
 import { rollChoices, applyUpgrade, levelOf, UPGRADES } from '../upgrades.js';
-import { WAVES } from '../waves.js';
+import { waveDef } from '../waves.js';
 import { isBossWave, isRegionStart, regionIndexOf } from '../regions.js';
 import { text, title, panel, button, inRect, roundRect, keycap, wrap } from '../render/ui.js';
 import { drawIcon } from '../render/icons.js';
 import { drawRouteStrip } from '../render/chart-art.js';
 
-const CARD = { w: 300, h: 362, gap: 34, y: 158 };
+const CARD = { w: 300, h: 362, gap: 34, y: 166 };
 const REROLL_BUTTON = { x: W / 2 - 372, y: 538, w: 350, h: 56 };
 const REPAIR_BUTTON = { x: W / 2 + 22, y: 538, w: 350, h: 56 };
 const SAIL_BUTTON = { x: W / 2 - 160, y: 300, w: 320, h: 70 };
@@ -29,6 +29,7 @@ export class HarborScene {
   enter(game) {
     this.world = game.run.world;
     this.choices = rollChoices(this.world.rng, this.world.build, 3);
+    this.freeReroll = this.world.freeReroll > 0;
     this.elapsed = 0;
     this.picked = -1;
     this.pickTimer = 0;
@@ -38,6 +39,7 @@ export class HarborScene {
     this.messageTimer = 0;
     this.world.pickups.length = 0;
     this.world.projectiles.length = 0;
+    this.world.effects.popups.length = 0;
   }
 
   pick(index, game) {
@@ -56,12 +58,15 @@ export class HarborScene {
   reroll(game) {
     const { world } = this;
     if (this.picked >= 0 || this.choices.length === 0) return;
-    if (world.purse < HARBOR.rerollCost) {
+    if (this.freeReroll) {
+      this.freeReroll = false;
+    } else if (world.purse < HARBOR.rerollCost) {
       game.audio.play('deny');
       this.say(`Rerolling costs ${HARBOR.rerollCost} pearls`);
       return;
+    } else {
+      world.purse -= HARBOR.rerollCost;
     }
-    world.purse -= HARBOR.rerollCost;
     this.choices = rollChoices(world.rng, world.build, 3);
     game.audio.play('click');
   }
@@ -153,7 +158,8 @@ export class HarborScene {
     text(ctx, this.choices.length ? 'Choose a blessing for the next stretch of sea' : 'Every blessing is yours. Sail on.', W / 2, 124, {
       size: 26, align: 'center', color: PALETTE.cream, stroke: '#10222d', strokeWidth: 6,
     });
-    drawRouteStrip(ctx, 62, 56, 112, regionIndexOf(world.wave) + (isBossWave(world.wave) ? 1 : 0), game.clock);
+    this.drawContractResult(ctx, world);
+    drawRouteStrip(ctx, 58, 56, 98, regionIndexOf(world.wave) + (isBossWave(world.wave) ? 1 : 0), game.clock);
     this.drawPurse(ctx, world);
 
     this.choices.forEach((upgrade, index) => this.drawCard(ctx, upgrade, index));
@@ -163,6 +169,17 @@ export class HarborScene {
     this.drawBuild(ctx, world);
     this.drawNext(ctx, world);
     ctx.restore();
+  }
+
+  /** After a boss wave: how the region's bounty contract ended. */
+  drawContractResult(ctx, world) {
+    const { contract } = world;
+    if (!contract || !isBossWave(world.wave)) return;
+    const done = contract.done;
+    const label = done
+      ? `Contract complete: ${contract.def.name}  +${contract.reward} salvage`
+      : `Contract failed: ${contract.def.name}`;
+    text(ctx, label, W / 2, 144, { size: 17, align: 'center', color: done ? PALETTE.gold : PALETTE.coral, stroke: '#10222d', strokeWidth: 5 });
   }
 
   drawPurse(ctx, world) {
@@ -247,10 +264,10 @@ export class HarborScene {
   }
 
   drawShop(ctx, world) {
-    const canReroll = world.purse >= HARBOR.rerollCost && this.choices.length > 0 && this.picked < 0;
+    const canReroll = (this.freeReroll || world.purse >= HARBOR.rerollCost) && this.choices.length > 0 && this.picked < 0;
     const hurt = world.boat.hp < world.boat.maxHp;
     const canRepair = world.purse >= HARBOR.repairCost && hurt;
-    button(ctx, REROLL_BUTTON, `Reroll cards  •  ${HARBOR.rerollCost} pearls`, {
+    button(ctx, REROLL_BUTTON, this.freeReroll ? 'Reroll cards  •  FREE (Haggler)' : `Reroll cards  •  ${HARBOR.rerollCost} pearls`, {
       hover: this.hoverButton === 'reroll', disabled: !canReroll, size: 22,
     });
     button(ctx, REPAIR_BUTTON, hurt ? `Mend a life ring  •  ${HARBOR.repairCost} pearls` : 'Hull in perfect shape', {
@@ -271,28 +288,28 @@ export class HarborScene {
       return;
     }
     owned.forEach((upgrade, index) => {
-      const x = 44 + index * 58;
+      const x = 44 + index * 50;
       const y = 686;
       const rarity = RARITY[upgrade.rarity];
       ctx.strokeStyle = rarity.color;
       ctx.lineWidth = 2.5;
       ctx.fillStyle = 'rgba(4, 35, 47, 0.9)';
       ctx.beginPath();
-      ctx.arc(x + 20, y - 6, 22, 0, TAU);
+      ctx.arc(x + 20, y - 6, 20, 0, TAU);
       ctx.fill();
       ctx.stroke();
-      drawIcon(ctx, upgrade.icon, x + 20, y - 6, 28, '#ffffff');
-      text(ctx, `x${levelOf(world.build, upgrade.id)}`, x + 36, y + 16, { size: 13, color: rarity.color, stroke: '#06202b', strokeWidth: 3 });
+      drawIcon(ctx, upgrade.icon, x + 20, y - 6, 26, '#ffffff');
+      text(ctx, `x${levelOf(world.build, upgrade.id)}`, x + 32, y + 14, { size: 13, color: rarity.color, stroke: '#06202b', strokeWidth: 3 });
     });
   }
 
   drawNext(ctx, world) {
-    const next = WAVES[world.wave + 1];
+    const next = waveDef(world.wave + 1);
     if (!next) return;
-    panel(ctx, W - 430, H - 98, 396, 74, { radius: 16, fill: 'rgba(4, 35, 47, 0.85)' });
-    text(ctx, `NEXT: WAVE ${world.wave + 1}  —  ${next.name}`, W - 412, H - 66, { size: 17, color: PALETTE.gold });
+    panel(ctx, W - 430, H - 108, 396, 86, { radius: 16, fill: 'rgba(4, 35, 47, 0.85)' });
+    text(ctx, `NEXT: WAVE ${world.wave + 1}  —  ${next.name}`, W - 412, H - 78, { size: 17, color: PALETTE.gold });
     const lines = wrap(ctx, next.hint, 360, 15);
-    text(ctx, lines[0], W - 412, H - 42, { size: 15, weight: 'normal', color: PALETTE.pearl });
-    if (lines[1]) text(ctx, lines[1], W - 412, H - 24, { size: 15, weight: 'normal', color: PALETTE.pearl });
+    text(ctx, lines[0], W - 412, H - 54, { size: 15, weight: 'normal', color: PALETTE.pearl });
+    if (lines[1]) text(ctx, lines[1], W - 412, H - 35, { size: 15, weight: 'normal', color: PALETTE.pearl });
   }
 }

@@ -40,6 +40,18 @@ const LOOKS = {
     motes: false,
     rock: { rim: '#c9c98a', stone: ['#b9c28a', '#7d8f5a', '#465a3a'], moss: 'rgba(70, 170, 90, 0.7)', shallow: 'rgba(150, 240, 170, 0.55)' },
   },
+  fleet: {
+    sea: ['#2f8a8f', '#1b5866', '#0b2f40'],
+    poolLight: 'rgba(150, 240, 225, 0.13)',
+    poolDark: 'rgba(1, 24, 34, 0.26)',
+    vignette: 'rgba(2, 20, 28, 0.64)',
+    line: '200, 245, 235',
+    caustics: 0.7,
+    shafts: true,
+    motes: false,
+    wrecks: true,
+    rock: { rim: '#b5b08a', stone: ['#a9a58a', '#6e6a58', '#3b392f'], moss: 'rgba(120, 170, 110, 0.55)', shallow: 'rgba(130, 220, 205, 0.5)' },
+  },
   abyss: {
     sea: ['#142a6a', '#0a1747', '#050a22'],
     poolLight: 'rgba(90, 130, 255, 0.12)',
@@ -107,6 +119,10 @@ function paintStatic(look) {
     }
   }
 
+  if (look.wrecks) {
+    for (const [wx, wy, scale, angle] of [[300, 520, 1.15, -0.35], [880, 250, 0.95, 0.5], [1010, 560, 0.8, -0.9], [160, 210, 0.7, 0.2]]) paintWreck(g, wx, wy, scale, angle);
+  }
+
   for (const rock of ROCKS) {
     const shallows = g.createRadialGradient(rock.x, rock.y, rock.r * 0.9, rock.x, rock.y, rock.r * 1.9);
     shallows.addColorStop(0, look.rock.shallow);
@@ -148,6 +164,46 @@ function paintStatic(look) {
   g.fillStyle = vignette;
   g.fillRect(-PAD, -PAD, W + PAD * 2, H + PAD * 2);
   return canvas;
+}
+
+/** A broken galleon lying on the seabed: dark ribs, a snapped mast and a few planks. */
+function paintWreck(g, x, y, scale, angle) {
+  g.save();
+  g.translate(x, y);
+  g.rotate(angle);
+  g.scale(scale, scale);
+  g.globalAlpha = 0.5;
+  g.fillStyle = 'rgba(2, 24, 34, 0.55)';
+  g.beginPath();
+  g.moveTo(130, 0);
+  g.bezierCurveTo(80, -42, 30, -50, -60, -48);
+  g.lineTo(-120, -34);
+  g.lineTo(-120, 34);
+  g.lineTo(-60, 48);
+  g.bezierCurveTo(30, 50, 80, 42, 130, 0);
+  g.closePath();
+  g.fill();
+  g.strokeStyle = 'rgba(120, 190, 180, 0.34)';
+  g.lineWidth = 4;
+  g.stroke();
+  g.lineWidth = 3;
+  for (let rib = -100; rib <= 90; rib += 24) {
+    const half = rib > 40 ? 42 - (rib - 40) * 0.6 : 44;
+    g.beginPath();
+    g.moveTo(rib, -half);
+    g.lineTo(rib + 6, half * (rib % 48 === 0 ? 0.3 : 1));
+    g.stroke();
+  }
+  g.lineWidth = 6;
+  g.beginPath();
+  g.moveTo(20, 0);
+  g.lineTo(52, -58);
+  g.stroke();
+  g.beginPath();
+  g.moveTo(-50, 4);
+  g.lineTo(-86, 62);
+  g.stroke();
+  g.restore();
 }
 
 function paintCaustics() {

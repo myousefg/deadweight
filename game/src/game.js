@@ -6,6 +6,7 @@ import { Input } from './input.js';
 import { audio } from './audio.js';
 import { World } from './world.js';
 import { Progress } from './progress.js';
+import { awardMedals } from './medals.js';
 import { TitleScene } from './scenes/title.js';
 import { DockScene } from './scenes/dock.js';
 import { ChartScene } from './scenes/chart.js';
@@ -33,6 +34,8 @@ export class Game {
     this.current = null;
     this.currentName = '';
     this.run = null;
+    /** True when the next run is a Deep Dive (endless) rather than the twelve-wave voyage. */
+    this.endless = false;
     this.fade = 0;
     this.clock = 0;
     /** Canvas pixels per logical pixel; main.js sets it when the window is fitted. */
@@ -70,9 +73,10 @@ export class Game {
   }
 
   /** Start a run with whichever anchor is equipped. The sea chart then starts its first wave. */
-  newRun(seed = Date.now() % 100000) {
-    const world = new World({ seed, anchorKind: this.progress.selected });
-    this.run = { world, seed, newBest: false, salvage: 0 };
+  newRun(seed = Date.now() % 100000, endless = this.endless) {
+    this.endless = !!endless;
+    const world = new World({ seed, anchorKind: this.progress.selected, talents: this.progress.data.talents, endless: this.endless });
+    this.run = { world, seed, newBest: false, salvage: 0, medals: [] };
     return world;
   }
 
@@ -80,8 +84,11 @@ export class Game {
   finishRun(world, won) {
     if (this.run.banked) return;
     this.run.banked = true;
-    this.run.newBest = this.progress.recordBest(world.stats.score);
+    this.run.newBest = this.progress.recordBest(world.stats.score, world.endless, world.wave);
+    if (world.endless) this.progress.recordBest(world.stats.score);
     this.run.salvage = this.progress.recordRun(world.stats, won);
+    this.run.medals = awardMedals(this.progress, world, won);
+    if (this.run.medals.length) this.audio.play('medal');
   }
 
   /** Browser animation frame: run as many fixed steps as the elapsed time asks for, then draw. */

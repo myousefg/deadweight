@@ -18,6 +18,9 @@ const ENEMY_COLORS = {
   kraken: '#b176f0',
   colossus: '#e2573c',
   eel: '#4aa3e8',
+  admiral: '#7fe0d4',
+  angler: '#3ec7b8',
+  manta: '#5ac8fa',
 };
 
 /* ---------------------------------------------------------------- scoring */
@@ -28,7 +31,7 @@ export function comboMultiplier(world) {
 
 /** Stormy seas are a bet: more creatures, but every point counts half again as much. */
 export function stormMultiplier(world) {
-  return world.stormy ? 1.5 : 1;
+  return world.stormy ? 1.5 + (world.stormBonus || 0) : 1;
 }
 
 export function addScore(world, base, x, y, popup = true) {
@@ -62,8 +65,13 @@ function registerKill(world) {
 /** Hurt an enemy; returns true when the blow landed. `dir` is the unit push direction. */
 export function damageEnemy(world, enemy, amount, dirX, dirY, knock, info = {}) {
   if (enemy.dead || enemy.invulnerable) return false;
-  const dealt = amount * (enemy.damageTaken ?? 1);
+  let dealt = amount * (enemy.damageTaken ?? 1);
+  if (enemy.boss) dealt *= world.build.bossDamage;
   enemy.hp -= dealt;
+  if (enemy.hp > 0 && !enemy.boss && world.build.reaper > 0 && enemy.hp <= enemy.maxHp * 0.18 * world.build.reaper) {
+    enemy.hp = 0;
+    if (world.rng.chance(0.25)) world.effects.popup('REAPED', enemy.x, enemy.y - enemy.r - 10, { color: PALETTE.violet, size: 20, life: 0.8 });
+  }
   enemy.flash = 0.12;
   enemy.kx += dirX * knock;
   enemy.ky += dirY * knock;
@@ -93,6 +101,7 @@ export function killEnemy(world, enemy, info = {}) {
     if (def.score >= 100 && world.rng.chance(lifeChance)) spawnLifeRing(world, enemy.x, enemy.y);
   } else {
     world.stats.bosses += 1;
+    world.stats.bossIds.push(enemy.id);
     addScore(world, def.score, enemy.x, enemy.y, false);
   }
   world.particles.splash(enemy.x, enemy.y, enemy.boss ? 60 : 16, color, enemy.boss ? 520 : 300);
@@ -120,6 +129,23 @@ function lightningArcs(world, source) {
   if (targets.length) audio.play('reflect');
 }
 
+/** Thunder Slam: a slam's impact throws lightning at the nearest living foes beyond its ring. */
+function thunderArcs(world, x, y) {
+  const level = world.build.thunder;
+  if (level <= 0) return;
+  const targets = world.enemies
+    .filter((e) => !e.dead && !e.invulnerable)
+    .map((e) => ({ e, near: nearestPart(e, x, y) }))
+    .filter((entry) => entry.near.gap < 420)
+    .sort((a, b) => a.near.gap - b.near.gap)
+    .slice(0, 2 + level);
+  for (const { e, near } of targets) {
+    world.zaps.push({ x1: x, y1: y, x2: near.part.x, y2: near.part.y, life: 0.3, max: 0.3 });
+    damageEnemy(world, e, 2.5 * world.build.damage, 0, 0, 0, { tier: 2, fromLightning: true });
+  }
+  if (targets.length) audio.play('bolt');
+}
+
 export function hurtBoat(world, amount, fromX, fromY) {
   const { boat } = world;
   if (boat.invuln > 0 || boat.sinking || world.surge || world.state === 'won' || world.state === 'cleared') return false;
@@ -128,7 +154,7 @@ export function hurtBoat(world, amount, fromX, fromY) {
     return false;
   }
   boat.hp -= amount;
-  boat.invuln = BOAT.invulnerable;
+  boat.invuln = BOAT.invulnerable * (1 + 0.3 * world.build.armor);
   const dx = boat.x - fromX;
   const dy = boat.y - fromY;
   const gap = Math.hypot(dx, dy) || 1;
@@ -167,7 +193,7 @@ export function healBoat(world, amount, x, y) {
 export function collectPearl(world, pearl) {
   world.stats.pearls += pearl.value;
   world.purse += pearl.value;
-  addScore(world, 10 * pearl.value, pearl.x, pearl.y, false);
+  addScore(world, 10 * pearl.value * (1 + 0.5 * world.build.gilded), pearl.x, pearl.y, false);
   addTide(world, 0.07 * pearl.value);
   audio.play('pearl');
   world.particles.sparks(pearl.x, pearl.y, 0, TAU, 5, PALETTE.pearl, 160);
@@ -191,6 +217,7 @@ export function resolveAnchor(world) {
       const ny = a.vy / speed;
       let amount = HIT_TIERS[tier - 1].damage * build.damage;
       if (e.stun > 0) amount *= 1.5;
+      if (near.part.weak) amount *= near.part.weak;
       const knock = (240 + speed * 0.4) / e.def.mass;
       damageEnemy(world, e, amount, nx, ny, knock, { tier });
       e.hitCd = ANCHOR.hitCooldown;
@@ -270,6 +297,7 @@ export function slamImpact(world, x, y) {
       e.hitCd = ANCHOR.hitCooldown;
     }
   }
+  thunderArcs(world, x, y);
   for (const p of world.projectiles) {
     if (p.friendly) continue;
     if (Math.hypot(p.x - x, p.y - y) < radius) {

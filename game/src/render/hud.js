@@ -1,13 +1,19 @@
 // The heads-up display, all drawn on the canvas so screenshots capture it: life rings, tide
-// meter, wave and region, score, combo, boss health, the wave banner and the aiming reticle.
+// meter, the voyage's wave pips, region, score, combo, boss health, the bounty contract, the
+// build bar, the wave banner and the aiming reticle.
 
 import { W, H, PALETTE, FONT_TITLE, BOAT, ANCHOR, HIT_TIERS } from '../config.js';
 import { TAU, easeOutBack, formatScore, clamp } from '../math.js';
 import { text, title, panel, roundRect, keycap, measure } from './ui.js';
 import { drawLifeRing } from '../pickups.js';
-import { comboMultiplier } from '../combat.js';
-import { FINAL_WAVE, WAVES } from '../waves.js';
-import { regionIndexOf } from '../regions.js';
+import { comboMultiplier, stormMultiplier } from '../combat.js';
+import { FINAL_WAVE, waveDef } from '../waves.js';
+import { regionIndexOf, lapOf } from '../regions.js';
+import { UPGRADES, levelOf } from '../upgrades.js';
+import { contractProgress } from '../contracts.js';
+import { drawIcon } from './icons.js';
+
+const RARITY_COLOR = { common: '#6ff2c5', rare: '#7cc4ff', epic: '#ff8fc6' };
 
 function drawLives(ctx, world) {
   const { boat } = world;
@@ -64,31 +70,71 @@ function drawMeters(ctx, world) {
   });
 }
 
+/** The voyage as twelve pips in four groups of three: cleared, current, and still to come. */
+function drawPips(ctx, world) {
+  const inLap = ((world.wave - 1) % FINAL_WAVE) + 1;
+  const finished = world.state === 'cleared' || world.state === 'won';
+  const spacing = 23;
+  const groupGap = 22;
+  const total = 11 * spacing + 3 * groupGap;
+  let x = W / 2 - total / 2;
+  for (let index = 1; index <= FINAL_WAVE; index += 1) {
+    const boss = index % 3 === 0;
+    const done = index < inLap || (index === inLap && finished);
+    const current = index === inLap && !finished;
+    const pulse = current ? 1 + 0.18 * Math.sin(world.time * 7) : 1;
+    ctx.save();
+    ctx.translate(x, 22);
+    ctx.scale(pulse, pulse);
+    ctx.fillStyle = done ? PALETTE.mint : current ? (boss ? PALETTE.coral : PALETTE.gold) : 'rgba(4, 35, 47, 0.8)';
+    ctx.strokeStyle = done ? '#1fae93' : current ? '#ffffff' : 'rgba(234, 252, 247, 0.5)';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    if (boss) {
+      ctx.moveTo(0, -10);
+      ctx.lineTo(10, 0);
+      ctx.lineTo(0, 10);
+      ctx.lineTo(-10, 0);
+      ctx.closePath();
+    } else {
+      ctx.arc(0, 0, 6.5, 0, TAU);
+    }
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+    x += spacing + (index % 3 === 0 ? groupGap : 0);
+  }
+}
+
 function drawWaveInfo(ctx, world) {
-  const def = WAVES[world.wave];
+  const def = waveDef(world.wave);
   if (!def) return;
   const boss = world.enemies.find((enemy) => enemy.boss);
   const bossWave = !!def.boss;
-  text(ctx, bossWave ? 'BOSS WAVE' : `WAVE ${world.wave} / ${FINAL_WAVE}`, W / 2, 40, {
-    size: 36, align: 'center', stroke: 'rgba(2,22,32,0.85)', strokeWidth: 7,
+  drawPips(ctx, world);
+  const lap = lapOf(world.wave);
+  const label = bossWave ? 'BOSS WAVE' : world.endless ? `WAVE ${world.wave}` : `WAVE ${world.wave} / ${FINAL_WAVE}`;
+  text(ctx, label, W / 2, 62, {
+    size: 32, align: 'center', stroke: 'rgba(2,22,32,0.85)', strokeWidth: 7,
     color: bossWave ? PALETTE.coral : '#ffffff',
   });
 
   // The region chip: where on the voyage this wave is, and whether the seas are stormy.
   const region = world.region;
-  const label = `REGION ${regionIndexOf(world.wave)} · ${region.name.toUpperCase()}`;
-  const width = measure(ctx, label, 16) + 34 + (world.stormy ? 100 : 0);
-  panel(ctx, W / 2 - width / 2, 48, width, 28, { radius: 14, fill: 'rgba(4, 35, 47, 0.78)', stroke: 'rgba(234,252,247,0.35)', shadow: false, lineWidth: 2 });
-  text(ctx, label, W / 2 - (world.stormy ? 50 : 0), 68, { size: 16, align: 'center', color: PALETTE.pearl });
+  const regionLabel = `REGION ${regionIndexOf(world.wave)} · ${region.name.toUpperCase()}${lap > 0 ? ` · LAP ${lap + 1}` : ''}`;
+  const tagWidth = world.stormy ? 92 : 0;
+  const width = measure(ctx, regionLabel, 16) + 34 + tagWidth;
+  panel(ctx, W / 2 - width / 2, 70, width, 28, { radius: 14, fill: 'rgba(4, 35, 47, 0.78)', stroke: 'rgba(234,252,247,0.35)', shadow: false, lineWidth: 2 });
+  text(ctx, regionLabel, W / 2 - tagWidth / 2, 90, { size: 16, align: 'center', color: PALETTE.pearl });
   if (world.stormy) {
-    text(ctx, 'STORMY', W / 2 + width / 2 - 56, 68, { size: 16, align: 'center', color: PALETTE.gold });
+    text(ctx, 'STORMY', W / 2 + width / 2 - 50, 90, { size: 16, align: 'center', color: PALETTE.gold });
   }
 
   if (bossWave) {
     if (!boss) return;
     const barWidth = 620;
     const x = (W - barWidth) / 2;
-    const y = 86;
+    const y = 106;
     panel(ctx, x, y, barWidth, 26, { radius: 13, fill: 'rgba(4,35,47,0.85)', stroke: PALETTE.violet, shadow: false });
     const fraction = Math.max(0, boss.hp / boss.maxHp);
     roundRect(ctx, x + 3, y + 3, (barWidth - 6) * fraction, 20, 10);
@@ -97,20 +143,81 @@ function drawWaveInfo(ctx, world) {
     fill.addColorStop(1, '#7a2fc4');
     ctx.fillStyle = fill;
     ctx.fill();
+    const notches = boss.def.notches || [];
+    for (const notch of notches) {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.fillRect(x + 3 + (barWidth - 6) * notch - 1.5, y + 2, 3, 22);
+    }
     text(ctx, boss.def.name.toUpperCase(), W / 2, y + 20, { size: 16, align: 'center', stroke: 'rgba(2,22,32,0.9)', strokeWidth: 3 });
+    if (notches.length > 0) {
+      const phase = 1 + notches.filter((notch) => fraction <= notch).length;
+      text(ctx, `PHASE ${phase}`, x + barWidth + 12, y + 20, {
+        size: 15, color: phase > 1 ? PALETTE.coral : PALETTE.pearl, stroke: 'rgba(2,22,32,0.85)', strokeWidth: 3,
+      });
+    }
     return;
   }
 
   const { left, total } = world.director.progress();
   const barWidth = 280;
   const x = (W - barWidth) / 2;
-  const y = 86;
+  const y = 106;
   panel(ctx, x, y, barWidth, 16, { radius: 8, fill: 'rgba(4,35,47,0.8)', stroke: 'rgba(234,252,247,0.35)', shadow: false, lineWidth: 2 });
   const remaining = clamp(left / total, 0, 1);
   roundRect(ctx, x + 2, y + 2, (barWidth - 4) * remaining, 12, 6);
   ctx.fillStyle = PALETTE.coral;
   ctx.fill();
   text(ctx, `${left} left`, x + barWidth + 10, y + 14, { size: 15, color: 'rgba(234,252,247,0.9)', weight: 'normal', stroke: 'rgba(2,22,32,0.8)', strokeWidth: 3 });
+}
+
+/** The bounty contract in play, with its progress, tucked under the meters. */
+function drawContract(ctx, world) {
+  const contract = world.contract;
+  if (!contract) return;
+  const { text: status, fraction } = contractProgress(contract);
+  const x = 22;
+  const y = 158;
+  const width = 252;
+  const accent = contract.done ? PALETTE.mint : contract.failed ? PALETTE.coral : PALETTE.gold;
+  panel(ctx, x, y, width, 56, { radius: 14, fill: 'rgba(4, 35, 47, 0.8)', stroke: accent, shadow: false, lineWidth: 2 });
+  drawIcon(ctx, contract.def.icon, x + 25, y + 28, 26, accent);
+  text(ctx, 'CONTRACT', x + 50, y + 19, { size: 11, color: PALETTE.pearl });
+  text(ctx, contract.def.name, x + 50, y + 37, { size: 16, color: '#ffffff' });
+  text(ctx, status, x + width - 12, y + 25, { size: 15, align: 'right', color: accent });
+  roundRect(ctx, x + 50, y + 43, width - 64, 6, 3);
+  ctx.fillStyle = 'rgba(255,255,255,0.14)';
+  ctx.fill();
+  if (fraction > 0) {
+    roundRect(ctx, x + 50, y + 43, (width - 64) * fraction, 6, 3);
+    ctx.fillStyle = accent;
+    ctx.fill();
+  }
+}
+
+/** Every upgrade owned so far, as a row of little badges along the bottom right. */
+function drawBuild(ctx, world) {
+  const owned = UPGRADES.filter((upgrade) => levelOf(world.build, upgrade.id) > 0);
+  if (owned.length === 0) return;
+  const spacing = 37;
+  let x = W - 26 - (owned.length - 1) * spacing - 16;
+  const y = H - 30;
+  text(ctx, 'BUILD', W - 24, y - 30, { size: 12, align: 'right', color: PALETTE.pearl, stroke: 'rgba(2,22,32,0.85)', strokeWidth: 3 });
+  for (const upgrade of owned) {
+    const color = RARITY_COLOR[upgrade.rarity];
+    ctx.fillStyle = 'rgba(4, 35, 47, 0.88)';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.arc(x + 16, y, 16, 0, TAU);
+    ctx.fill();
+    ctx.stroke();
+    drawIcon(ctx, upgrade.icon, x + 16, y, 21, '#ffffff');
+    const level = levelOf(world.build, upgrade.id);
+    if (level > 1) {
+      text(ctx, String(level), x + 29, y + 17, { size: 13, align: 'center', color, stroke: '#06202b', strokeWidth: 4 });
+    }
+    x += spacing;
+  }
 }
 
 function drawScore(ctx, world, best) {
@@ -145,7 +252,7 @@ function drawCombo(ctx, world) {
     size: 40, align: 'center', color: PALETTE.gold, font: FONT_TITLE, weight: 'normal', stroke: '#2a1a05', strokeWidth: 9,
   });
   ctx.restore();
-  text(ctx, `score x${(comboMultiplier(world) * (world.stormy ? 1.5 : 1)).toFixed(1)}`, W / 2, H - 84, {
+  text(ctx, `score x${(comboMultiplier(world) * stormMultiplier(world)).toFixed(1)}`, W / 2, H - 84, {
     size: 18, align: 'center', color: PALETTE.pearl, stroke: 'rgba(2,22,32,0.85)', strokeWidth: 4,
   });
   roundRect(ctx, W / 2 - 100, H - 74, 200, 8, 4);
@@ -195,7 +302,7 @@ function drawControlsHint(ctx, world) {
     total += width;
     return width;
   });
-  let x = (W - total) / 2;
+  let x = 36;
   const y = H - 16;
   panel(ctx, x - 14, y - 30, total + 20, 42, { radius: 21, fill: 'rgba(4, 35, 47, 0.7)', stroke: null, shadow: false });
   items.forEach(([key, label], index) => {
@@ -236,6 +343,8 @@ export function drawReticle(ctx, x, y, tier, time) {
 export function drawHud(ctx, world, best) {
   drawLives(ctx, world);
   drawMeters(ctx, world);
+  drawContract(ctx, world);
+  drawBuild(ctx, world);
   drawWaveInfo(ctx, world);
   drawScore(ctx, world, best);
   drawCombo(ctx, world);

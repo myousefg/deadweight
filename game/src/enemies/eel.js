@@ -87,6 +87,7 @@ export const eel = {
   id: 'eel',
   name: 'Storm Eel Queen',
   boss: true,
+  notches: [0.5],
   radius: 28,
   hp: 90,
   mass: 90,
@@ -95,7 +96,7 @@ export const eel = {
   pearls: [0, 0],
 
   init(e, world) {
-    e.hp = Math.round(90 * (world.stormy ? 1.15 : 1));
+    e.hp = world.bossHp(90);
     e.maxHp = e.hp;
     resetTrail(e, -140, 210);
     e.state = 'enter';
