@@ -21,7 +21,7 @@ export class VictoryScene {
   restart(game) {
     game.audio.play('select');
     game.newRun();
-    game.switchTo('play');
+    game.switchTo('chart');
   }
 
   update(dt, game) {
@@ -72,7 +72,7 @@ export class VictoryScene {
     text(ctx, 'The Kraken sinks beneath the waves. You are the legend of this harbor.', W / 2, 196, {
       size: 24, align: 'center', color: PALETTE.cream, stroke: '#10222d', strokeWidth: 6,
     });
-    drawResultsPanel(ctx, world, W / 2 - 440, 238, 880, { won: true, newBest: this.newBest, best: game.best });
+    drawResultsPanel(ctx, world, W / 2 - 440, 238, 880, { won: true, newBest: this.newBest, best: game.best, salvage: game.run.salvage });
     button(ctx, AGAIN_BUTTON, 'SAIL AGAIN', { primary: true, hover: this.hover === 'again', size: 32 });
     button(ctx, TITLE_BUTTON, 'TITLE', { hover: this.hover === 'title', size: 32 });
     keycap(ctx, 'ENTER', AGAIN_BUTTON.x + AGAIN_BUTTON.w / 2 - 32, AGAIN_BUTTON.y + AGAIN_BUTTON.h + 26, { size: 14 });

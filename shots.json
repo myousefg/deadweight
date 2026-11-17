@@ -2,5 +2,5 @@
   { "name": "1-play.jpg", "query": "?shot=play&seed=1" },
   { "name": "2-title.jpg", "query": "?shot=start" },
   { "name": "3-harbor.jpg", "query": "?shot=harbor&seed=1" },
-  { "name": "4-victory.jpg", "query": "?shot=end&seed=9" }
+  { "name": "4-victory.jpg", "query": "?shot=end&seed=2" }
 ]

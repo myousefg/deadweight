@@ -103,6 +103,8 @@ export const kraken = {
   pearls: [0, 0],
 
   init(e, world) {
+    e.hp = Math.round(e.hp * (world.stormy ? 1.15 : 1));
+    e.maxHp = e.hp;
     e.x = W / 2;
     e.y = -180;
     e.state = 'enter';

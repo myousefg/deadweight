@@ -1,17 +1,18 @@
 // The game shell: owns the canvas, input, the current scene and the fixed-step clock, and keeps
-// the best score. Scenes ask it to switch, to start a new run, or to save a score.
+// the saved progress. Scenes ask it to switch, to start a new run, or to bank a finished run.
 
 import { W, H, STEP, MAX_STEPS_PER_FRAME } from './config.js';
 import { Input } from './input.js';
 import { audio } from './audio.js';
 import { World } from './world.js';
+import { Progress } from './progress.js';
 import { TitleScene } from './scenes/title.js';
+import { DockScene } from './scenes/dock.js';
+import { ChartScene } from './scenes/chart.js';
 import { PlayScene } from './scenes/play.js';
 import { HarborScene } from './scenes/harbor.js';
 import { GameOverScene } from './scenes/gameover.js';
 import { VictoryScene } from './scenes/victory.js';
-
-const BEST_KEY = 'deadweight-best-score';
 
 export class Game {
   constructor(canvas) {
@@ -19,8 +20,11 @@ export class Game {
     this.ctx = canvas.getContext('2d');
     this.input = new Input(canvas);
     this.audio = audio;
+    this.progress = new Progress();
     this.scenes = {
       title: new TitleScene(),
+      dock: new DockScene(),
+      chart: new ChartScene(),
       play: new PlayScene(),
       harbor: new HarborScene(),
       gameover: new GameOverScene(),
@@ -29,7 +33,6 @@ export class Game {
     this.current = null;
     this.currentName = '';
     this.run = null;
-    this.best = this.loadBest();
     this.fade = 0;
     this.clock = 0;
     /** Canvas pixels per logical pixel; main.js sets it when the window is fitted. */
@@ -53,24 +56,8 @@ export class Game {
     });
   }
 
-  loadBest() {
-    try {
-      return Number(localStorage.getItem(BEST_KEY)) || 0;
-    } catch {
-      return 0;
-    }
-  }
-
-  /** Remember a new best score; returns true when it beat the old one. */
-  saveBest(score) {
-    if (score <= this.best) return false;
-    this.best = score;
-    try {
-      localStorage.setItem(BEST_KEY, String(Math.round(score)));
-    } catch {
-      // Private browsing or blocked storage: the best score just lasts for this page view.
-    }
-    return true;
+  get best() {
+    return this.progress.best;
   }
 
   switchTo(name, data) {
@@ -82,11 +69,19 @@ export class Game {
     this.fade = 1;
   }
 
+  /** Start a run with whichever anchor is equipped. The sea chart then starts its first wave. */
   newRun(seed = Date.now() % 100000) {
-    const world = new World({ seed });
-    world.startWave(1);
-    this.run = { world, seed };
+    const world = new World({ seed, anchorKind: this.progress.selected });
+    this.run = { world, seed, newBest: false, salvage: 0 };
     return world;
+  }
+
+  /** Bank a finished run: best score and salvage. Called once, when a run ends. */
+  finishRun(world, won) {
+    if (this.run.banked) return;
+    this.run.banked = true;
+    this.run.newBest = this.progress.recordBest(world.stats.score);
+    this.run.salvage = this.progress.recordRun(world.stats, won);
   }
 
   /** Browser animation frame: run as many fixed steps as the elapsed time asks for, then draw. */

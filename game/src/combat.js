@@ -1,10 +1,12 @@
 // Everything that happens when two things touch: the anchor's blows, slams, the tide surge, the
 // boat taking damage, enemies dying and the combo and score that follow. world.js calls these once
-// per step, after every body has moved.
+// per step, after every body has moved. Bodies are tested part by part (see enemy.js), so a long
+// serpent or a crab's claws are hit where they actually are.
 
 import { ANCHOR, BOAT, COMBO, HIT_TIERS, PALETTE, SURGE } from './config.js';
 import { TAU, easeOutCubic } from './math.js';
 import { audio } from './audio.js';
+import { nearestPart } from './enemy.js';
 import { spawnPearl, spawnLifeRing } from './pickups.js';
 
 const ENEMY_COLORS = {
@@ -14,6 +16,8 @@ const ENEMY_COLORS = {
   puffer: '#ffd25a',
   shark: '#8fb0c4',
   kraken: '#b176f0',
+  colossus: '#e2573c',
+  eel: '#4aa3e8',
 };
 
 /* ---------------------------------------------------------------- scoring */
@@ -22,8 +26,13 @@ export function comboMultiplier(world) {
   return 1 + Math.min(COMBO.maxBonus, Math.floor(world.combo.count / COMBO.perStep) * 0.5);
 }
 
+/** Stormy seas are a bet: more creatures, but every point counts half again as much. */
+export function stormMultiplier(world) {
+  return world.stormy ? 1.5 : 1;
+}
+
 export function addScore(world, base, x, y, popup = true) {
-  const gain = Math.round(base * comboMultiplier(world));
+  const gain = Math.round(base * comboMultiplier(world) * stormMultiplier(world));
   world.stats.score += gain;
   if (popup && gain > 0) world.effects.popup(`+${gain}`, x, y - 8, { size: 18 + Math.min(14, gain / 120) });
 }
@@ -53,11 +62,12 @@ function registerKill(world) {
 /** Hurt an enemy; returns true when the blow landed. `dir` is the unit push direction. */
 export function damageEnemy(world, enemy, amount, dirX, dirY, knock, info = {}) {
   if (enemy.dead || enemy.invulnerable) return false;
-  enemy.hp -= amount;
+  const dealt = amount * (enemy.damageTaken ?? 1);
+  enemy.hp -= dealt;
   enemy.flash = 0.12;
   enemy.kx += dirX * knock;
   enemy.ky += dirY * knock;
-  world.stats.damage += amount;
+  world.stats.damage += dealt;
   const color = ENEMY_COLORS[enemy.id] || PALETTE.foam;
   world.particles.splash(enemy.x, enemy.y, 3 + (info.tier || 1) * 2, color, 240);
   if (enemy.hp <= 0) killEnemy(world, enemy, info);
@@ -82,6 +92,7 @@ export function killEnemy(world, enemy, info = {}) {
     const lifeChance = 0.02 + (world.boat.hp <= 2 ? 0.05 : 0);
     if (def.score >= 100 && world.rng.chance(lifeChance)) spawnLifeRing(world, enemy.x, enemy.y);
   } else {
+    world.stats.bosses += 1;
     addScore(world, def.score, enemy.x, enemy.y, false);
   }
   world.particles.splash(enemy.x, enemy.y, enemy.boss ? 60 : 16, color, enemy.boss ? 520 : 300);
@@ -97,12 +108,13 @@ function lightningArcs(world, source) {
   if (level <= 0 || !world.rng.chance(0.28 + 0.14 * level)) return;
   const targets = world.enemies
     .filter((e) => !e.dead && e !== source && !e.invulnerable)
-    .map((e) => ({ e, gap: Math.hypot(e.x - source.x, e.y - source.y) }))
+    .map((e) => ({ e, gap: nearestPart(e, source.x, source.y).gap }))
     .filter((entry) => entry.gap < 300)
     .sort((a, b) => a.gap - b.gap)
     .slice(0, 1 + level);
   for (const { e } of targets) {
-    world.zaps.push({ x1: source.x, y1: source.y, x2: e.x, y2: e.y, life: 0.25, max: 0.25 });
+    const hit = nearestPart(e, source.x, source.y).part;
+    world.zaps.push({ x1: source.x, y1: source.y, x2: hit.x, y2: hit.y, life: 0.25, max: 0.25 });
     damageEnemy(world, e, 2 * world.build.damage, 0, 0, 0, { tier: 2, fromLightning: true });
   }
   if (targets.length) audio.play('reflect');
@@ -171,11 +183,8 @@ export function resolveAnchor(world) {
 
   for (const e of world.enemies) {
     if (e.dead) continue;
-    const dx = e.x - a.x;
-    const dy = e.y - a.y;
-    const gap = Math.hypot(dx, dy);
-    const reach = e.r + a.r;
-    if (gap >= reach) continue;
+    const near = nearestPart(e, a.x, a.y);
+    if (near.gap >= a.r) continue;
 
     if (tier > 0 && e.hitCd <= 0 && !e.invulnerable) {
       const nx = a.vx / speed;
@@ -190,16 +199,21 @@ export function resolveAnchor(world) {
       a.vy *= slow;
       world.effects.stop(0.014 * (tier + 1));
       world.effects.addShake(1.5 + tier * 1.6);
-      world.particles.sparks(e.x - nx * e.r * 0.6, e.y - ny * e.r * 0.6, Math.atan2(ny, nx), 1.4, 4 + tier * 3, HIT_TIERS[tier - 1].color);
+      world.particles.sparks(near.part.x - nx * near.part.r * 0.6, near.part.y - ny * near.part.r * 0.6, Math.atan2(ny, nx), 1.4, 4 + tier * 3, HIT_TIERS[tier - 1].color);
       audio.play('hit', tier);
       if (tier === 3 && world.rng.chance(0.5)) {
-        world.effects.popup('CRUSH!', e.x, e.y - e.r - 18, { color: PALETTE.coral, size: 26, life: 0.8 });
+        world.effects.popup('CRUSH!', near.part.x, near.part.y - near.part.r - 18, { color: PALETTE.coral, size: 26, life: 0.8 });
       }
       if (build.splash > 0) splashDamage(world, e, amount * 0.35 * build.splash, 60 + 24 * build.splash);
-    } else if (gap > 0.001 && e.def.mass < 10) {
-      const push = (reach - gap) * 0.35;
-      e.x += (dx / gap) * push;
-      e.y += (dy / gap) * push;
+    } else if (e.def.mass < 10) {
+      const dx = near.part.x - a.x;
+      const dy = near.part.y - a.y;
+      const gap = Math.hypot(dx, dy);
+      if (gap > 0.001) {
+        const push = (a.r - near.gap) * 0.35;
+        e.x += (dx / gap) * push;
+        e.y += (dy / gap) * push;
+      }
     }
   }
 
@@ -225,11 +239,10 @@ export function resolveAnchor(world) {
 function splashDamage(world, origin, amount, radius) {
   for (const other of world.enemies) {
     if (other === origin || other.dead) continue;
-    const gap = Math.hypot(other.x - origin.x, other.y - origin.y);
-    if (gap < radius + other.r) {
-      const nx = (other.x - origin.x) / (gap || 1);
-      const ny = (other.y - origin.y) / (gap || 1);
-      damageEnemy(world, other, amount, nx, ny, 160 / other.def.mass, { tier: 1 });
+    const near = nearestPart(other, origin.x, origin.y);
+    if (near.gap < radius) {
+      const gap = Math.hypot(near.part.x - origin.x, near.part.y - origin.y) || 1;
+      damageEnemy(world, other, amount, (near.part.x - origin.x) / gap, (near.part.y - origin.y) / gap, 160 / other.def.mass, { tier: 1 });
     }
   }
 }
@@ -247,12 +260,13 @@ export function slamImpact(world, x, y) {
   world.particles.ring(x, y, radius * 0.1, radius * 0.75, 0.3, PALETTE.gold, 4);
   for (const e of world.enemies) {
     if (e.dead) continue;
-    const dx = e.x - x;
-    const dy = e.y - y;
-    const gap = Math.hypot(dx, dy);
-    if (gap < radius + e.r) {
-      const falloff = 1 - Math.min(1, gap / (radius + e.r)) * 0.4;
-      damageEnemy(world, e, ANCHOR.slamDamage * build.damage * falloff, dx / (gap || 1), dy / (gap || 1), 560 / e.def.mass, { tier: 3 });
+    const near = nearestPart(e, x, y);
+    if (near.gap < radius) {
+      const dx = near.part.x - x;
+      const dy = near.part.y - y;
+      const gap = Math.hypot(dx, dy) || 1;
+      const falloff = 1 - Math.min(1, Math.max(0, near.gap) / radius) * 0.4;
+      damageEnemy(world, e, ANCHOR.slamDamage * build.damage * falloff, dx / gap, dy / gap, 560 / e.def.mass, { tier: 3 });
       e.hitCd = ANCHOR.hitCooldown;
     }
   }
@@ -272,13 +286,14 @@ export function resolveBoat(world) {
   if (boat.sinking) return;
   for (const e of world.enemies) {
     if (e.dead) continue;
-    const dx = boat.x - e.x;
-    const dy = boat.y - e.y;
-    const gap = Math.hypot(dx, dy);
-    if (gap < boat.r + e.r * 0.82) {
-      if (hurtBoat(world, e.def.contact, e.x, e.y) && !e.boss) {
-        e.kx -= (dx / (gap || 1)) * 260 / e.def.mass;
-        e.ky -= (dy / (gap || 1)) * 260 / e.def.mass;
+    const near = nearestPart(e, boat.x, boat.y);
+    if (near.gap < boat.r * 0.75) {
+      const dx = boat.x - near.part.x;
+      const dy = boat.y - near.part.y;
+      const gap = Math.hypot(dx, dy) || 1;
+      if (hurtBoat(world, e.def.contact, near.part.x, near.part.y) && !e.boss) {
+        e.kx -= (dx / gap) * 260 / e.def.mass;
+        e.ky -= (dy / gap) * 260 / e.def.mass;
       }
     }
   }
@@ -296,7 +311,7 @@ export function resolveFriendlyProjectiles(world) {
     if (!p.friendly || p.dead) continue;
     for (const e of world.enemies) {
       if (e.dead || e.invulnerable) continue;
-      if (Math.hypot(e.x - p.x, e.y - p.y) < e.r + p.r) {
+      if (nearestPart(e, p.x, p.y).gap < p.r) {
         const speed = Math.hypot(p.vx, p.vy) || 1;
         damageEnemy(world, e, p.damage * world.build.damage, p.vx / speed, p.vy / speed, 180 / e.def.mass, { tier: 2 });
         world.particles.sparks(p.x, p.y, 0, TAU, 6, PALETTE.mint);
@@ -334,12 +349,13 @@ export function updateSurge(world, dt) {
   }
   for (const e of world.enemies) {
     if (e.dead || e.surgeId === surge.id) continue;
-    const dx = e.x - boat.x;
-    const dy = e.y - boat.y;
-    const gap = Math.hypot(dx, dy);
-    if (gap < radius + e.r) {
+    const near = nearestPart(e, boat.x, boat.y);
+    if (near.gap < radius) {
       e.surgeId = surge.id;
-      damageEnemy(world, e, SURGE.damage * world.build.damage, dx / (gap || 1), dy / (gap || 1), SURGE.push / e.def.mass, { tier: 2 });
+      const dx = near.part.x - boat.x;
+      const dy = near.part.y - boat.y;
+      const gap = Math.hypot(dx, dy) || 1;
+      damageEnemy(world, e, SURGE.damage * world.build.damage, dx / gap, dy / gap, SURGE.push / e.def.mass, { tier: 2 });
     }
   }
   for (const p of world.projectiles) {

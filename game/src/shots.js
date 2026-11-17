@@ -1,21 +1,27 @@
-// Screenshot scenes behind ?shot=start|play|harbor|end. Each one plays the real game forward with
-// the autopilot (see autopilot.js) and stops on a good frame, so the picture is what a short run
-// of the actual code produces and the same seed always gives the same frame.
+// Screenshot scenes behind ?shot=start|play|harbor|end|chart|dock. Each one plays the real game
+// forward with the autopilot (see autopilot.js) and stops on a good frame, so the picture is what
+// a short run of the actual code produces and the same seed always gives the same frame.
 
 import { STEP } from './config.js';
 import { createAutopilot } from './autopilot.js';
 import { FINAL_WAVE } from './waves.js';
 import { applyUpgrade, rollChoices, upgradeById } from './upgrades.js';
 
-const MAX_WAVE_SECONDS = 150;
+const MAX_WAVE_SECONDS = 200;
 
 function giveBuild(world, ids) {
   for (const id of ids) applyUpgrade(world.build, world.boat, upgradeById(id));
 }
 
+/** A fresh run with its first wave begun, as the sea chart does when the player sets sail. */
+function beginRun(game, seed) {
+  const world = game.newRun(seed);
+  world.startWave(1);
+  return world;
+}
+
 /** Run one wave to its end (cleared, won or lost) with the autopilot; returns the final state. */
 function playWave(world, pilot, wave) {
-  // A fresh run has already begun wave 1, exactly as a real new run does.
   if (world.wave !== wave) world.startWave(wave);
   for (let t = 0; t < MAX_WAVE_SECONDS; t += STEP) {
     world.update(STEP, pilot(world, STEP));
@@ -36,44 +42,37 @@ function harborVisit(world) {
   world.projectiles.length = 0;
 }
 
-/** How good a frame this is for a screenshot: a crowded sea, a hot combo, the anchor mid-blow. */
+/** How good a frame this is for a screenshot: a boss on screen, strikes coming, the anchor mid-blow. */
 function frameScore(world) {
   if (world.state !== 'fight' || world.effects.hurt > 0.02 || world.boat.invuln > 0) return -1;
+  const boss = world.enemies.find((enemy) => enemy.boss);
+  const onScreen = (part) => part.x > 30 && part.x < 1250 && part.y > 110 && part.y < 690;
+  const parts = boss && boss.parts ? boss.parts.filter(onScreen).length : boss ? 1 : 0;
+  const telegraphs = world.hazards.filter((hazard) => hazard.kind === 'slam' && !hazard.struck).length;
   const tier = world.anchor.tier;
-  const { boat } = world;
-  const onScreen = world.enemies.filter((e) => e.x > 40 && e.x < 1240 && e.y > 120 && e.y < 680);
-  const near = onScreen.filter((e) => Math.hypot(e.x - boat.x, e.y - boat.y) < 330);
-  const kinds = new Set(onScreen.map((e) => e.id)).size;
-  return Math.min(onScreen.length, 12) * 1.2
-    + near.length * 1.5
-    + kinds * 2.5
-    + Math.min(world.combo.count, 12) * 1.2
-    + (tier >= 3 ? 7 : tier === 2 ? 5 : tier === 1 ? 1 : 0)
-    + (world.projectiles.length > 0 ? 3 : 0)
-    + world.zaps.length * 2
+  const near = boss && boss.parts
+    ? Math.min(...boss.parts.map((part) => Math.hypot(part.x - world.boat.x, part.y - world.boat.y)))
+    : 999;
+  return parts * 2
+    + Math.min(telegraphs, 3) * 4
+    + (tier >= 3 ? 6 : tier === 2 ? 4 : tier === 1 ? 1 : 0)
+    + (near < 260 ? 4 : 0)
+    + (boss && boss.state === 'coil' ? 5 : 0)
     + Math.min(world.particles.list.length, 300) / 60;
 }
 
-/** Seconds of ordinary play before the showcase pack arrives, and how long it is scanned for a frame. */
 const WARMUP_STEPS = Math.round(9 / STEP);
-const SCAN_STEPS = Math.round(5 / STEP);
+const SCAN_STEPS = Math.round(14 / STEP);
 
 function startPlayRun(game, seed) {
-  const world = game.newRun(seed);
+  const world = beginRun(game, seed);
   giveBuild(world, ['heavy', 'heavy', 'chain', 'splash', 'lightning', 'hull', 'spring']);
-  world.stats.score = 21800;
-  world.startWave(7);
+  world.wave = 5;
+  world.stats.score = 19800;
+  world.stats.bosses = 1;
+  world.stormy = true;
+  world.startWave(6);
   return world;
-}
-
-/** Drop one of every creature onto the sea with the game's own spawn call, spread around the boat. */
-function spawnShowcase(world) {
-  const pack = [
-    ['shark', 0.84, 0.3], ['puffer', 0.2, 0.3], ['urchin', 0.3, 0.8], ['urchin', 0.8, 0.76],
-    ['jelly', 0.62, 0.2], ['jelly', 0.4, 0.2], ['jelly', 0.1, 0.62], ['jelly', 0.92, 0.55],
-    ['piranha', 0.68, 0.84], ['piranha', 0.72, 0.87], ['piranha', 0.65, 0.88], ['piranha', 0.75, 0.82],
-  ];
-  for (const [type, fx, fy] of pack) world.spawnEnemy(type, fx * 1280, fy * 720);
 }
 
 /** The sim is deterministic, so find the best frame in one pass and replay to it in a second. */
@@ -87,28 +86,27 @@ function stagePlay(game, seed) {
   let world = startPlayRun(game, seed);
   let pilot = createAutopilot();
   advance(world, pilot, WARMUP_STEPS);
-  spawnShowcase(world);
   let best = { score: -1, step: 0 };
   advance(world, pilot, SCAN_STEPS, (step) => {
     const score = frameScore(world);
-    if (step > 20 && score > best.score) best = { score, step };
+    if (score > best.score) best = { score, step };
   });
   world = startPlayRun(game, seed);
   pilot = createAutopilot();
-  advance(world, pilot, WARMUP_STEPS);
-  spawnShowcase(world);
-  advance(world, pilot, best.step + 1);
+  advance(world, pilot, WARMUP_STEPS + best.step + 1);
   game.switchTo('play');
 }
 
 function stageHarbor(game, seed) {
-  const world = game.newRun(seed);
+  const world = beginRun(game, seed);
+  world.godMode = true;
   const pilot = createAutopilot();
   giveBuild(world, ['heavy']);
   for (let wave = 1; wave <= 3; wave += 1) {
     if (playWave(world, pilot, wave) !== 'cleared') break;
     if (wave < 3) harborVisit(world);
   }
+  world.godMode = false;
   world.purse = Math.max(world.purse, 38);
   game.switchTo('harbor');
   // Let the cards slide in and old popups fade, then rest the cursor on the middle card.
@@ -119,7 +117,7 @@ function stageHarbor(game, seed) {
 }
 
 function stageEnd(game, seed) {
-  const world = game.newRun(seed);
+  const world = beginRun(game, seed);
   const pilot = createAutopilot();
   for (let wave = 1; wave <= FINAL_WAVE; wave += 1) {
     const result = playWave(world, pilot, wave);
@@ -127,7 +125,7 @@ function stageEnd(game, seed) {
     harborVisit(world);
   }
   for (let t = 0; t < 8 && world.state !== 'won' && world.state !== 'lost'; t += STEP) world.update(STEP, pilot(world, STEP));
-  game.run.newBest = game.saveBest(world.stats.score);
+  game.finishRun(world, world.state === 'won');
   game.switchTo(world.state === 'won' ? 'victory' : 'gameover');
   game.current.elapsed = 1.2;
 }
@@ -164,6 +162,15 @@ export function stageShot(game, name, seed = 1) {
     stageHarbor(game, seed);
   } else if (name === 'end') {
     stageEnd(game, seed);
+  } else if (name === 'chart') {
+    beginRun(game, seed);
+    game.run.world.wave = 3;
+    game.switchTo('chart');
+    game.advance(0.6);
+  } else if (name === 'dock') {
+    game.progress.data.salvage = Math.max(game.progress.data.salvage, 1000);
+    game.switchTo('dock');
+    game.advance(0.6);
   }
   game.controlOverride = null;
   game.fade = 0;

@@ -5,12 +5,14 @@ import { W, H, PALETTE, HARBOR } from '../config.js';
 import { TAU, formatScore } from '../math.js';
 import { rollChoices, applyUpgrade, levelOf, UPGRADES } from '../upgrades.js';
 import { WAVES } from '../waves.js';
+import { isBossWave, isRegionStart, regionIndexOf } from '../regions.js';
 import { text, title, panel, button, inRect, roundRect, keycap, wrap } from '../render/ui.js';
 import { drawIcon } from '../render/icons.js';
+import { drawRouteStrip } from '../render/chart-art.js';
 
-const CARD = { w: 300, h: 330, gap: 34, y: 176 };
-const REROLL_BUTTON = { x: W / 2 - 372, y: 530, w: 350, h: 58 };
-const REPAIR_BUTTON = { x: W / 2 + 22, y: 530, w: 350, h: 58 };
+const CARD = { w: 300, h: 362, gap: 34, y: 158 };
+const REROLL_BUTTON = { x: W / 2 - 372, y: 538, w: 350, h: 56 };
+const REPAIR_BUTTON = { x: W / 2 + 22, y: 538, w: 350, h: 56 };
 const SAIL_BUTTON = { x: W / 2 - 160, y: 300, w: 320, h: 70 };
 const RARITY = {
   common: { color: '#6ff2c5', label: 'COMMON' },
@@ -85,8 +87,13 @@ export class HarborScene {
     const { world } = this;
     if (world.build.salvage > 0) world.boat.heal(world.build.salvage);
     world.boat.invuln = 1.5;
-    world.startWave(world.wave + 1);
-    game.switchTo('play');
+    const next = world.wave + 1;
+    if (isRegionStart(next)) {
+      game.switchTo('chart');
+    } else {
+      world.startWave(next);
+      game.switchTo('play');
+    }
   }
 
   update(dt, game) {
@@ -142,13 +149,14 @@ export class HarborScene {
     const slide = Math.min(1, this.elapsed / 0.4);
     ctx.save();
     ctx.globalAlpha = slide;
-    title(ctx, `WAVE ${world.wave} CLEARED`, W / 2, 82, 66, PALETTE.mint);
+    title(ctx, isBossWave(world.wave) ? 'REGION CLEARED' : `WAVE ${world.wave} CLEARED`, W / 2, 82, 66, PALETTE.mint);
     text(ctx, this.choices.length ? 'Choose a blessing for the next stretch of sea' : 'Every blessing is yours. Sail on.', W / 2, 124, {
-      size: 24, align: 'center', color: PALETTE.cream, stroke: '#10222d', strokeWidth: 6,
+      size: 26, align: 'center', color: PALETTE.cream, stroke: '#10222d', strokeWidth: 6,
     });
+    drawRouteStrip(ctx, 62, 56, 112, regionIndexOf(world.wave) + (isBossWave(world.wave) ? 1 : 0), game.clock);
     this.drawPurse(ctx, world);
 
-    this.choices.forEach((upgrade, index) => this.drawCard(ctx, upgrade, index, game));
+    this.choices.forEach((upgrade, index) => this.drawCard(ctx, upgrade, index));
     if (this.choices.length === 0) button(ctx, SAIL_BUTTON, 'SAIL ON', { primary: true, hover: this.hoverButton === 'sail', size: 34 });
 
     this.drawShop(ctx, world);
@@ -177,7 +185,7 @@ export class HarborScene {
     text(ctx, 'PEARLS', x - 32, 128, { size: 12, align: 'right', color: PALETTE.pearl, weight: 'normal' });
   }
 
-  drawCard(ctx, upgrade, index, game) {
+  drawCard(ctx, upgrade, index) {
     const rect = cardRect(index);
     const rarity = RARITY[upgrade.rarity];
     const hovered = this.hover === index && this.picked < 0;
@@ -218,10 +226,10 @@ export class HarborScene {
     ctx.stroke();
     drawIcon(ctx, upgrade.icon, cx, cy, 58, '#ffffff');
 
-    text(ctx, upgrade.name, cx, rect.y + 188, { size: 25, align: 'center' });
-    const lines = wrap(ctx, upgrade.text, rect.w - 48, 17);
-    lines.forEach((line, row) => {
-      text(ctx, line, cx, rect.y + 222 + row * 24, { size: 17, align: 'center', weight: 'normal', color: PALETTE.pearl });
+    text(ctx, upgrade.name, cx, rect.y + 196, { size: 31, align: 'center' });
+    const lines = wrap(ctx, upgrade.text, rect.w - 44, 21);
+    lines.slice(0, 3).forEach((line, row) => {
+      text(ctx, line, cx, rect.y + 232 + row * 26, { size: 21, align: 'center', weight: 'normal', color: PALETTE.pearl });
     });
 
     const pipsY = rect.y + rect.h - 30;
@@ -236,7 +244,6 @@ export class HarborScene {
       size: 13, align: 'center', color: rarity.color,
     });
     ctx.restore();
-    void game;
   }
 
   drawShop(ctx, world) {
@@ -252,7 +259,7 @@ export class HarborScene {
     keycap(ctx, 'R', REROLL_BUTTON.x + REROLL_BUTTON.w - 40, REROLL_BUTTON.y + REROLL_BUTTON.h + 24, { size: 14 });
     keycap(ctx, 'H', REPAIR_BUTTON.x + REPAIR_BUTTON.w - 40, REPAIR_BUTTON.y + REPAIR_BUTTON.h + 24, { size: 14 });
     if (this.messageTimer > 0) {
-      text(ctx, this.message, W / 2, 616, { size: 20, align: 'center', color: PALETTE.coral, stroke: '#10222d', strokeWidth: 5 });
+      text(ctx, this.message, W / 2, 634, { size: 22, align: 'center', color: PALETTE.coral, stroke: '#10222d', strokeWidth: 5 });
     }
   }
 

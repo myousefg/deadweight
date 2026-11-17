@@ -44,7 +44,7 @@ export class Boat {
 
     this.invuln = Math.max(0, this.invuln - dt);
     this.dashCd = Math.max(0, this.dashCd - dt);
-    const maxSpeed = BOAT.maxSpeed * build.speed;
+    const maxSpeed = BOAT.maxSpeed * build.speed * world.boatSlow;
 
     let wantX = controls.moveX;
     let wantY = controls.moveY;

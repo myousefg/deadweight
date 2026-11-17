@@ -1,8 +1,9 @@
 // The chain and the anchor: a sagging linked chain from the boat, a speed-coloured motion trail,
-// a glow that tells you how hard the next blow will land, and the anchor itself.
+// a glow that tells you how hard the next blow will land, and the equipped anchor itself.
 
-import { HIT_TIERS, PALETTE } from '../config.js';
+import { HIT_TIERS } from '../config.js';
 import { TAU } from '../math.js';
+import { drawAnchorShape } from './anchor-shapes.js';
 
 function chainPath(ctx, boat, anchor) {
   const dx = anchor.x - boat.x;
@@ -64,10 +65,20 @@ function drawTrail(ctx, anchor) {
   ctx.restore();
 }
 
-function drawAnchorBody(ctx, anchor, time) {
+function drawAnchorBody(ctx, anchor, kind, time) {
   const scale = (anchor.r / 17) * 1.2;
   ctx.save();
   ctx.translate(anchor.x, anchor.y);
+
+  if (kind === 'lantern') {
+    const lamp = ctx.createRadialGradient(0, 0, 4, 0, 0, anchor.r * 4.5);
+    lamp.addColorStop(0, 'rgba(255, 200, 90, 0.5)');
+    lamp.addColorStop(1, 'rgba(255, 200, 90, 0)');
+    ctx.fillStyle = lamp;
+    ctx.beginPath();
+    ctx.arc(0, 0, anchor.r * 4.5, 0, TAU);
+    ctx.fill();
+  }
 
   if (anchor.tier > 0) {
     const color = HIT_TIERS[anchor.tier - 1].color;
@@ -94,57 +105,7 @@ function drawAnchorBody(ctx, anchor, time) {
 
   ctx.rotate(anchor.angle);
   ctx.scale(scale, scale);
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
-  const metal = ctx.createLinearGradient(-18, -18, 18, 18);
-  metal.addColorStop(0, '#e6f0f5');
-  metal.addColorStop(0.5, PALETTE.steel);
-  metal.addColorStop(1, '#6f8794');
-
-  ctx.strokeStyle = '#1d2a31';
-  ctx.lineWidth = 9;
-  ctx.beginPath();
-  ctx.moveTo(-17, 3);
-  ctx.quadraticCurveTo(-14, 18, 0, 19);
-  ctx.quadraticCurveTo(14, 18, 17, 3);
-  ctx.moveTo(0, -12);
-  ctx.lineTo(0, 17);
-  ctx.moveTo(-10, -7);
-  ctx.lineTo(10, -7);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(0, -17, 4.8, 0, TAU);
-  ctx.stroke();
-
-  ctx.strokeStyle = metal;
-  ctx.lineWidth = 5.4;
-  ctx.beginPath();
-  ctx.moveTo(-17, 3);
-  ctx.quadraticCurveTo(-14, 18, 0, 19);
-  ctx.quadraticCurveTo(14, 18, 17, 3);
-  ctx.moveTo(0, -12);
-  ctx.lineTo(0, 17);
-  ctx.moveTo(-10, -7);
-  ctx.lineTo(10, -7);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(0, -17, 4.8, 0, TAU);
-  ctx.lineWidth = 3.4;
-  ctx.stroke();
-
-  ctx.fillStyle = metal;
-  ctx.strokeStyle = '#1d2a31';
-  ctx.lineWidth = 2;
-  for (const side of [-1, 1]) {
-    ctx.beginPath();
-    ctx.moveTo(side * 17, 3);
-    ctx.lineTo(side * 24, -3);
-    ctx.lineTo(side * 11, -2);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-  }
+  drawAnchorShape(ctx, kind, time);
   ctx.restore();
 }
 
@@ -153,5 +114,5 @@ export function drawChainAndAnchor(ctx, world) {
   if (boat.sinking && boat.sinkTime > 1.8) return;
   drawChain(ctx, boat, anchor);
   drawTrail(ctx, anchor);
-  drawAnchorBody(ctx, anchor, world.time);
+  drawAnchorBody(ctx, anchor, world.anchorKind, world.time);
 }

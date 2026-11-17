@@ -6,13 +6,26 @@
 
 **Deadweight** is a top-down arcade game about a tiny rowboat and a very heavy anchor. Row with the
 keyboard, swing the anchor with the mouse, and let momentum do the work: the faster the anchor
-moves, the harder it hits. Sink eight waves of sea creatures, spend your pearls at the harbor, and
-face the Kraken.
+moves, the harder it hits. Sail a three-region voyage, beat a boss in each, spend your pearls at the
+harbor and your salvage at the dock.
 
 It is plain HTML5 canvas and ES modules, with no library, no build step, no image files and no
 network request. Every sprite is drawn in code and every sound is synthesised with Web Audio.
 
-![Deadweight gameplay](screenshots/1-play.jpg)
+![Deadweight: the Storm Eel Queen](screenshots/1-play.jpg)
+
+## The voyage
+
+Nine waves in three regions. Each region has its own look, hazard, creatures and boss.
+
+| Region | Hazard | Boss |
+| --- | --- | --- |
+| Sunlit Shallows | none | **Hermit Colossus**: armoured, so dash through its shockwaves and hit it when it is dazed |
+| Kelp Maze | kelp slows boats and fish | **Storm Eel Queen**: a long serpent that calls lightning and sweeps the whole sea |
+| The Abyss | whirlpools drag you in | **The Kraken**: tentacle slams, ink fans and summoned jellies |
+
+Before each region the **sea chart** shows the voyage and offers a bet: *calm seas*, or *stormy seas*
+for 30% more creatures, a tougher boss and half again as much score.
 
 ## How to play
 
@@ -27,9 +40,12 @@ network request. Every sprite is drawn in code and every sound is synthesised wi
 
 - **Tap, Wham, Crush:** the anchor's speed sets its damage tier, shown by its trail colour.
 - **Snappers** flash before they dart, **urchins** burst into spines, **puffers** fire spines you can
-  bat back, **sharks** charge in a line and are dazed after. Wave 9 is the **Kraken**.
-- After each wave you pick one of three upgrade cards at the harbor, and can spend pearls to reroll
-  the cards or mend a life ring.
+  bat back, **sharks** charge in a line and are dazed after.
+- After each wave you pick one of three upgrade cards at the harbor (13 upgrades, three rarities),
+  and can spend pearls to reroll the cards or mend a life ring.
+- Every finished run banks **salvage**. Spend it at **the dock** on four anchors that play
+  differently: the balanced Ship's Anchor, the long and quick Grapnel, the heavy Iron Mace and the
+  lightning-wreathed Storm Lantern. What you own and wear is saved in the browser.
 
 ## Run it
 
@@ -46,8 +62,9 @@ To build the hand-in folder the way the grader does:
 mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 ```
 
-Screenshot scenes are staged by the game itself: add `?shot=start`, `?shot=play`,
-`?shot=harbor` or `?shot=end` to the address (see `shots.json` and `game/src/shots.js`).
+Screenshot scenes are staged by the game itself: add `?shot=start`, `?shot=play`, `?shot=harbor`,
+`?shot=end`, `?shot=chart` or `?shot=dock` to the address (see `shots.json` and
+`game/src/shots.js`).
 
 ## How the code is laid out
 
@@ -57,12 +74,14 @@ Everything the game needs is in `game/`; each file has one job.
 | --- | --- |
 | `src/main.js`, `game.js`, `input.js`, `audio.js` | Boot, fixed-step loop and scene switching, keyboard and mouse, synthesised sound |
 | `src/world.js`, `combat.js`, `waves.js` | The simulation, contact rules and scoring, the wave table and spawn director |
-| `src/boat.js`, `anchor.js` | The player: sailing and dashing, and the spring-and-chain anchor |
-| `src/enemies/` | One file per creature (jelly, piranha, urchin, puffer, shark, kraken): behaviour and art together |
-| `src/upgrades.js`, `pickups.js`, `projectiles.js`, `hazards.js` | The build and cards, pearls and life rings, spines and ink, tentacle slams |
-| `src/scenes/` | Title, play, harbor, game over and victory |
-| `src/render/` | Sea background, boat and anchor art, HUD, UI kit, icons, results panel |
-| `src/autopilot.js`, `shots.js` | A computer pilot that powers the title demo and stages the screenshots |
+| `src/regions.js`, `currents.js` | The three regions, and their kelp and whirlpool hazards |
+| `src/boat.js`, `anchor.js`, `anchor-types.js` | The player: sailing and dashing, the spring-and-chain anchor, the four anchors |
+| `src/progress.js` | Salvage, owned anchors and best score, saved between visits |
+| `src/enemies/` | One file per creature (jelly, piranha, urchin, puffer, shark) and boss (colossus, eel, kraken): behaviour and art together |
+| `src/upgrades.js`, `pickups.js`, `projectiles.js`, `hazards.js` | The build and cards, pearls and life rings, spines and ink, slams, bolts and shockwave rings |
+| `src/scenes/` | Title, dock, sea chart, play, harbor, game over and victory |
+| `src/render/` | Sea backgrounds, boat and anchor art, HUD, UI kit, icons, chart art, results panel |
+| `src/autopilot.js`, `shots.js` | A computer pilot that powers the title demo, plays the game for testing and stages the screenshots |
 
 `main.ts`, `serve.ts` and `vendor/makefun-game.ts` are the make.fun hand-in program, a static file
 server for local play, and make.fun's own library (copied unchanged from the bounty kit).

@@ -10,12 +10,15 @@ import { Effects } from './effects.js';
 import { Boat } from './boat.js';
 import { Anchor } from './anchor.js';
 import { createBuild } from './upgrades.js';
+import { applyAnchorType } from './anchor-types.js';
 import { createEnemy, drawEnemy } from './enemy.js';
 import { ENEMY_TYPES } from './enemies/index.js';
 import { WaveDirector, FINAL_WAVE, WAVES } from './waves.js';
+import { regionOf, isBossWave } from './regions.js';
 import { updateProjectiles, drawProjectiles } from './projectiles.js';
 import { updatePickups, drawPickups } from './pickups.js';
 import { updateHazards, drawHazardTelegraphs, drawHazardTentacles } from './hazards.js';
+import { createZones, updateZones, drawZones, fishSlow } from './currents.js';
 import * as combat from './combat.js';
 import { drawSea } from './render/sea.js';
 import { drawBoat } from './render/boat-art.js';
@@ -26,23 +29,26 @@ const INTRO_TIME = 2.4;
 const NO_CONTROLS = { moveX: 0, moveY: 0, aimX: W / 2, aimY: H / 2, slam: false, surge: false, dash: false };
 
 export class World {
-  constructor({ seed = 1, attract = false } = {}) {
+  constructor({ seed = 1, attract = false, anchorKind = 'ship' } = {}) {
     this.seed = seed;
     this.attract = attract;
+    this.anchorKind = anchorKind;
     this.rng = createRng(seed);
     this.particles = new Particles();
     this.effects = new Effects();
     this.build = createBuild();
+    applyAnchorType(this.build, anchorKind);
     this.boat = new Boat();
     this.anchor = new Anchor(this.boat);
     this.enemies = [];
     this.projectiles = [];
     this.pickups = [];
     this.hazards = [];
+    this.zones = [];
     this.zaps = [];
     this.director = new WaveDirector(this);
     this.stats = {
-      score: 0, kills: 0, pearls: 0, damage: 0, hits: 0, slams: 0, surges: 0, reflected: 0, bestCombo: 0, time: 0,
+      score: 0, kills: 0, bosses: 0, pearls: 0, damage: 0, hits: 0, slams: 0, surges: 0, reflected: 0, bestCombo: 0, time: 0,
     };
     this.combo = { count: 0, timer: 0 };
     /** Pearls available to spend at the harbor (stats.pearls counts every one ever caught). */
@@ -55,12 +61,21 @@ export class World {
     this.stateTimer = 0;
     this.banner = null;
     this.speedScale = 1;
+    this.stormy = false;
+    this.boatSlow = 1;
     this.godMode = false;
     this.time = 0;
     this.finale = null;
     this.vacuum = false;
     this.hitsAtWaveStart = 0;
-    this.hintTimer = 0;
+    /** True once only stragglers remain: ranged fish then close in instead of keeping their distance. */
+    this.hunt = false;
+    this.huntTimer = 0;
+  }
+
+  /** The region the current (or upcoming) wave is in. */
+  get region() {
+    return regionOf(this.wave);
   }
 
   /* ------------------------------------------------------------ lifecycle */
@@ -73,10 +88,13 @@ export class World {
     this.speedScale = 1 + 0.035 * (wave - 1);
     this.vacuum = false;
     this.hitsAtWaveStart = this.stats.hits;
+    this.zones = createZones(this, wave);
+    this.hazards.length = 0;
     this.director.begin(wave);
+    const boss = def.boss ? ENEMY_TYPES[def.boss] : null;
     this.banner = {
-      title: wave === FINAL_WAVE ? 'THE KRAKEN' : `WAVE ${wave}`,
-      sub: wave === FINAL_WAVE ? 'The sea’s last nightmare rises' : def.name,
+      title: boss ? boss.name.toUpperCase() : `WAVE ${wave}`,
+      sub: boss ? `Boss of the ${this.region.name}` : def.name,
       hint: def.hint,
       t: 0,
       dur: INTRO_TIME + 0.4,
@@ -91,6 +109,27 @@ export class World {
     def.init?.(enemy, this);
     this.enemies.push(enemy);
     return enemy;
+  }
+
+  /** Called when a region's boss dies: its minions vanish and the sea is the player's. */
+  bossDown(x, y) {
+    for (const enemy of this.enemies) {
+      if (!enemy.boss && !enemy.dead) {
+        enemy.dead = true;
+        this.particles.splash(enemy.x, enemy.y, 10, PALETTE.foam, 260);
+      }
+    }
+    this.projectiles.length = 0;
+    this.hazards.length = 0;
+    this.effects.addShake(22);
+    this.effects.flash = 0.8;
+    this.effects.stop(0.15);
+    this.effects.popup('BOSS DEFEATED!', W / 2, H * 0.4, { color: PALETTE.gold, size: 54, life: 2, rise: 30 });
+    for (let i = 0; i < 6; i += 1) {
+      this.particles.splash(x + (Math.random() - 0.5) * 160, y + (Math.random() - 0.5) * 120, 22, PALETTE.gold, 460);
+    }
+    this.particles.confetti(x, y, 50);
+    audio.play('clear');
   }
 
   /** Called when the Kraken dies: the run is won, the sea goes quiet and fireworks begin. */
@@ -135,6 +174,7 @@ export class World {
 
     const lost = this.state === 'lost';
     const ctl = lost ? { ...NO_CONTROLS, aimX: this.anchor.x, aimY: this.anchor.y } : controls;
+    updateZones(this, dt);
     this.boat.update(dt, ctl, this.build, this);
     this.anchor.update(dt, this.boat, ctl, this.build, this);
     if (this.anchor.pendingImpact) combat.slamImpact(this, this.anchor.x, this.anchor.y);
@@ -174,6 +214,10 @@ export class World {
       }
     } else if (this.state === 'fight') {
       this.director.update(dt);
+      // When only stragglers are left and nothing more will spawn, they stop hanging back.
+      const stragglers = this.director.schedule.length === 0 && this.enemies.length > 0 && !isBossWave(this.wave);
+      this.huntTimer = stragglers ? this.huntTimer + dt : 0;
+      this.hunt = this.huntTimer > 8;
       if (this.wave < FINAL_WAVE && this.director.cleared) this.clearWave();
     }
   }
@@ -182,11 +226,12 @@ export class World {
     this.state = 'cleared';
     this.stateTimer = 0;
     this.vacuum = true;
+    const boss = isBossWave(this.wave);
     const flawless = this.stats.hits === this.hitsAtWaveStart;
-    const bonus = 250 * this.wave + (flawless ? 500 : 0);
+    const bonus = 250 * this.wave + (flawless ? 500 : 0) + (boss ? 1000 : 0);
     this.stats.score += bonus;
     this.banner = {
-      title: 'WAVE CLEARED',
+      title: boss ? 'REGION CLEARED' : 'WAVE CLEARED',
       sub: flawless ? `Flawless! +${bonus} bonus` : `+${bonus} bonus`,
       hint: '',
       t: 0,
@@ -211,6 +256,11 @@ export class World {
       e.hitCd = Math.max(0, e.hitCd - dt);
       e.flash = Math.max(0, e.flash - dt);
       e.def.update(e, this, dt);
+      if (!e.boss) {
+        const slow = fishSlow(this.zones, e.x, e.y);
+        e.vx *= slow;
+        e.vy *= slow;
+      }
       e.x += (e.vx + e.kx) * dt;
       e.y += (e.vy + e.ky) * dt;
       const decay = Math.exp(-5.5 * dt);
@@ -267,7 +317,8 @@ export class World {
     const shake = this.effects.shakeOffset();
     ctx.save();
     ctx.translate(shake.x, shake.y);
-    drawSea(ctx, this.time);
+    drawSea(ctx, this.time, this.region.id);
+    drawZones(ctx, this);
     drawHazardTelegraphs(ctx, this);
     drawPickups(ctx, this);
     this.particles.draw(ctx);

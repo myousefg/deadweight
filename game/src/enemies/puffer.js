@@ -38,7 +38,8 @@ export const puffer = {
 
     if (e.state === 'idle') {
       let speed = 0;
-      if (gap < 250) speed = -95;
+      if (world.hunt) speed = gap > 170 ? 130 : 0;
+      else if (gap < 250) speed = -95;
       else if (gap > 360) speed = 80;
       const perpendicular = e.strafe * 38;
       e.vx = (dx / gap) * speed * world.speedScale + (-dy / gap) * perpendicular;

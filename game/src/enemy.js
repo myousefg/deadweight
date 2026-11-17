@@ -32,6 +32,28 @@ export function createEnemy(def, x, y, rng) {
   };
 }
 
+/**
+ * The circles that make up an enemy's body. Most are a single circle (the enemy itself); bosses
+ * with claws or a long serpent body list their own `parts`, each { x, y, r }.
+ */
+export function partsOf(enemy) {
+  return enemy.parts || [enemy];
+}
+
+/** The part of `enemy` nearest the point (x, y), and the gap between that part's surface and it. */
+export function nearestPart(enemy, x, y) {
+  let best = enemy;
+  let bestGap = Infinity;
+  for (const part of partsOf(enemy)) {
+    const gap = Math.hypot(part.x - x, part.y - y) - part.r;
+    if (gap < bestGap) {
+      bestGap = gap;
+      best = part;
+    }
+  }
+  return { part: best, gap: bestGap };
+}
+
 export function drawEnemy(ctx, enemy, world) {
   const { def } = enemy;
   ctx.save();

@@ -39,7 +39,11 @@ export class Input {
       } else if (event.button === 2) {
         this.mouse.rightPressed = true;
       }
-      canvas.setPointerCapture?.(event.pointerId);
+      try {
+        canvas.setPointerCapture?.(event.pointerId);
+      } catch {
+        // Synthetic or expired pointers cannot be captured; the game works without capture.
+      }
     });
     canvas.addEventListener('pointerup', (event) => {
       if (event.button === 0) this.mouse.down = false;

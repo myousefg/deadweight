@@ -49,11 +49,11 @@ export class PlayScene {
       game.switchTo('harbor');
     } else if (world.state === 'won' && world.stateTimer > WIN_DELAY) {
       this.handedOff = true;
-      game.run.newBest = game.saveBest(world.stats.score);
+      game.finishRun(world, true);
       game.switchTo('victory');
     } else if (world.state === 'lost' && world.stateTimer > LOSE_DELAY) {
       this.handedOff = true;
-      game.run.newBest = game.saveBest(world.stats.score);
+      game.finishRun(world, false);
       game.switchTo('gameover');
     }
   }

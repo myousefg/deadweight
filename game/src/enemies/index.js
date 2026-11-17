@@ -5,11 +5,13 @@ import { piranha } from './piranha.js';
 import { urchin } from './urchin.js';
 import { puffer } from './puffer.js';
 import { shark } from './shark.js';
+import { colossus } from './colossus.js';
+import { eel } from './eel.js';
 import { kraken } from './kraken.js';
 
-export const ENEMY_TYPES = { jelly, piranha, urchin, puffer, shark, kraken };
+export const ENEMY_TYPES = { jelly, piranha, urchin, puffer, shark, colossus, eel, kraken };
 
-/** Budget points each kind spends when a wave is composed, and how many spawn at once. */
+/** Budget points each ordinary kind spends when a wave is composed, and how many spawn at once. */
 export const ENEMY_COST = {
   jelly: { cost: 1, pack: 1 },
   piranha: { cost: 3, pack: 4 },

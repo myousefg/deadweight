@@ -1,13 +1,16 @@
 // The title screen: the real game plays itself on the right (an autopilot swings the anchor
-// through drifting jellies) while the left explains the controls and offers Set Sail.
+// through drifting creatures) while the left explains the controls and offers Set Sail or the dock.
 
 import { W, H, PALETTE, FONT_TITLE } from '../config.js';
 import { World } from '../world.js';
 import { createAutopilot } from '../autopilot.js';
+import { anchorType } from '../anchor-types.js';
+import { drawAnchorShape } from '../render/anchor-shapes.js';
 import { text, title, panel, button, inRect, keycap, measure } from '../render/ui.js';
 import { clamp, formatScore } from '../math.js';
 
 const START_BUTTON = { x: 70, y: 616, w: 330, h: 70 };
+const DOCK_BUTTON = { x: 424, y: 616, w: 250, h: 70 };
 const CONTROLS = [
   ['WASD', 'Row the boat'],
   ['MOUSE', 'Swing the heavy anchor. Speed is damage'],
@@ -18,7 +21,7 @@ const CONTROLS = [
 
 export class TitleScene {
   enter(game) {
-    const world = new World({ seed: 11, attract: true });
+    const world = new World({ seed: 11, attract: true, anchorKind: game.progress.selected });
     world.godMode = true;
     // An inert state: the wave director never runs, so nothing clears or ends in the demo.
     world.state = 'attract';
@@ -29,22 +32,29 @@ export class TitleScene {
     this.world = world;
     this.pilot = createAutopilot({ home: { x: 930, y: 450 }, homePull: 5 });
     this.spawnTimer = 0.2;
-    this.hover = false;
+    this.hover = '';
   }
 
   start(game) {
     game.audio.unlock();
     game.audio.play('select');
     game.newRun();
-    game.switchTo('play');
+    game.switchTo('chart');
   }
 
   update(dt, game) {
     const { input, audio } = game;
     const world = this.world;
-    this.hover = inRect(input.mouse.x, input.mouse.y, START_BUTTON);
+    this.hover = '';
+    if (inRect(input.mouse.x, input.mouse.y, START_BUTTON)) this.hover = 'start';
+    else if (inRect(input.mouse.x, input.mouse.y, DOCK_BUTTON)) this.hover = 'dock';
     if (input.wasPressed('KeyM')) audio.toggleMute();
-    if (input.anyPressed('Enter', 'Space') || (input.mouse.pressed && this.hover)) {
+    if (input.wasPressed('KeyD') || (input.mouse.pressed && this.hover === 'dock')) {
+      audio.play('click');
+      game.switchTo('dock');
+      return;
+    }
+    if (input.anyPressed('Enter', 'Space') || (input.mouse.pressed && this.hover === 'start')) {
       this.start(game);
       return;
     }
@@ -99,29 +109,49 @@ export class TitleScene {
       size: 30, align: 'center', color: PALETTE.cream, stroke: '#10222d', strokeWidth: 7,
     });
 
-    panel(ctx, 50, 262, 700, 326, { radius: 22, fill: 'rgba(4, 35, 47, 0.8)' });
-    text(ctx, 'HOW TO PLAY', 80, 304, { size: 20, color: PALETTE.gold });
+    panel(ctx, 50, 262, 700, 326, { radius: 22, fill: 'rgba(4, 35, 47, 0.82)' });
+    text(ctx, 'HOW TO PLAY', 80, 302, { size: 21, color: PALETTE.gold });
     CONTROLS.forEach(([key, label], index) => {
-      const y = 348 + index * 44;
-      const width = keycap(ctx, key, 80, y, { size: 18 });
-      text(ctx, label, 80 + Math.max(width, 92) + 18, y, { size: 19, weight: 'normal', color: PALETTE.pearl });
+      const y = 346 + index * 42;
+      const width = keycap(ctx, key, 80, y, { size: 19 });
+      text(ctx, label, 80 + Math.max(width, 96) + 18, y, { size: 21, weight: 'normal', color: PALETTE.pearl });
     });
-    text(ctx, 'Sink 8 waves of sea creatures, then face the Kraken.', 80, 570, {
-      size: 18, color: PALETTE.mint, weight: 'normal',
+    text(ctx, '3 regions · 3 bosses · 13 upgrades · 4 anchors to unlock', 80, 566, {
+      size: 21, color: PALETTE.mint,
     });
 
-    button(ctx, START_BUTTON, 'SET SAIL', { primary: true, hover: this.hover, size: 34, hint: '' });
-    text(ctx, 'or press ENTER', START_BUTTON.x + START_BUTTON.w + 24, START_BUTTON.y + 42, {
+    button(ctx, START_BUTTON, 'SET SAIL', { primary: true, hover: this.hover === 'start', size: 34 });
+    button(ctx, DOCK_BUTTON, 'THE DOCK', { hover: this.hover === 'dock', size: 28 });
+    text(ctx, 'ENTER to sail, D for the dock', DOCK_BUTTON.x + DOCK_BUTTON.w + 22, DOCK_BUTTON.y + 42, {
       size: 18, color: PALETTE.pearl, weight: 'normal', stroke: 'rgba(2,22,32,0.8)', strokeWidth: 4,
     });
 
+    this.drawLoadout(ctx, game);
+
     if (game.best > 0) {
       text(ctx, `BEST  ${formatScore(game.best)}`, W - 36, H - 30, {
-        size: 24, align: 'right', color: PALETTE.gold, font: FONT_TITLE, weight: 'normal', stroke: '#10222d', strokeWidth: 6,
+        size: 26, align: 'right', color: PALETTE.gold, font: FONT_TITLE, weight: 'normal', stroke: '#10222d', strokeWidth: 6,
       });
     }
     const muteLabel = game.audio.muted ? 'SOUND OFF  (M)' : 'SOUND ON  (M)';
     const width = measure(ctx, muteLabel, 14);
     text(ctx, muteLabel, W - 20 - width, 30, { size: 14, color: 'rgba(234,252,247,0.8)', stroke: 'rgba(2,22,32,0.8)', strokeWidth: 3 });
+  }
+
+  /** The equipped anchor and the salvage banked, tucked in the top corner. */
+  drawLoadout(ctx, game) {
+    const { progress } = game;
+    const type = anchorType(progress.selected);
+    const x = W - 330;
+    const y = 46;
+    panel(ctx, x, y, 310, 72, { radius: 18, fill: 'rgba(4, 35, 47, 0.8)', shadow: false });
+    ctx.save();
+    ctx.translate(x + 40, y + 38 + Math.sin(game.clock * 2) * 2);
+    ctx.rotate(Math.sin(game.clock) * 0.3);
+    ctx.scale(1.1, 1.1);
+    drawAnchorShape(ctx, type.id, game.clock);
+    ctx.restore();
+    text(ctx, type.name, x + 80, y + 32, { size: 21 });
+    text(ctx, `SALVAGE  ${formatScore(progress.salvage)}`, x + 80, y + 58, { size: 16, color: PALETTE.gold });
   }
 }

@@ -182,6 +182,17 @@ class AudioEngine {
         this.burst({ dur: 0.35, vol: 0.5, filter: 'lowpass', freq: 1000, freqEnd: 60 });
         this.tone({ type: 'sine', freq: 90, freqEnd: 40, dur: 0.35, vol: 0.5 });
         break;
+      case 'bolt':
+        this.burst({ dur: 0.3, vol: 0.55, filter: 'highpass', freq: 3000, freqEnd: 800, q: 0.6 });
+        this.tone({ type: 'sawtooth', freq: 140, freqEnd: 40, dur: 0.4, vol: 0.4 });
+        break;
+      case 'stomp':
+        this.tone({ type: 'sine', freq: 95, freqEnd: 30, dur: 0.6, vol: 0.75 });
+        this.burst({ dur: 0.45, vol: 0.5, freq: 900, freqEnd: 90 });
+        break;
+      case 'unlock':
+        [523, 659, 784, 988, 1175].forEach((freq, index) => this.tone({ type: 'triangle', freq, dur: 0.3, vol: 0.28, delay: index * 0.09 }));
+        break;
       case 'win':
         [523, 659, 784, 1047, 1319].forEach((freq, index) => this.tone({ type: 'triangle', freq, dur: 0.5, vol: 0.28, delay: index * 0.14 }));
         break;

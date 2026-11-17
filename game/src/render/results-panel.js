@@ -18,7 +18,7 @@ export function rankFor(score, won) {
 }
 
 export function drawResultsPanel(ctx, world, x, y, width, options = {}) {
-  const { won = false, newBest = false, best = 0 } = options;
+  const { won = false, newBest = false, best = 0, salvage = 0 } = options;
   const height = 292;
   panel(ctx, x, y, width, height, { radius: 24, fill: 'rgba(4, 35, 47, 0.88)' });
 
@@ -37,12 +37,15 @@ export function drawResultsPanel(ctx, world, x, y, width, options = {}) {
     size: 32, align: 'right', color: won ? PALETTE.gold : PALETTE.coral, stroke: '#10222d', strokeWidth: 7,
   });
   const reached = won ? 'Kraken defeated' : `Reached wave ${world.wave} of ${FINAL_WAVE}`;
-  text(ctx, reached, x + width - 36, y + 120, { size: 19, align: 'right', color: PALETTE.cream, weight: 'normal' });
+  text(ctx, reached, x + width - 36, y + 120, { size: 20, align: 'right', color: PALETTE.cream, weight: 'normal' });
+  if (salvage > 0) {
+    text(ctx, `+${salvage} SALVAGE BANKED`, x + width - 36, y + 154, { size: 24, align: 'right', color: PALETTE.gold, stroke: '#2a1a05', strokeWidth: 6 });
+  }
 
   const tiles = [
     ['SUNK', String(world.stats.kills)],
     ['BEST COMBO', `x${world.stats.bestCombo}`],
-    ['PEARLS', String(world.stats.pearls)],
+    ['BOSSES', `${world.stats.bosses} / 3`],
     ['SLAMS', String(world.stats.slams)],
     ['HITS TAKEN', String(world.stats.hits)],
     ['TIME', formatTime(world.stats.time)],
