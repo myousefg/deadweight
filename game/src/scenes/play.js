@@ -1,7 +1,7 @@
 // The play scene: feeds the player's controls to the world, draws the HUD, handles pause, and
 // hands off to the harbor, the victory screen or the game-over screen when the world says so.
 
-import { W, H, PALETTE } from '../config.js';
+import { W, H, PALETTE } from '../core/config.js';
 import { drawHud, drawReticle } from '../render/hud.js';
 import { text, title, panel, keycap } from '../render/ui.js';
 

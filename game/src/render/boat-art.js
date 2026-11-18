@@ -1,8 +1,8 @@
 // The rowboat, seen from above: planked hull, a sailor in a red cap, swinging oars and a
 // pennant that streams behind. It flickers while invulnerable and sinks when the run is lost.
 
-import { PALETTE } from '../config.js';
-import { TAU } from '../math.js';
+import { PALETTE } from '../core/config.js';
+import { TAU } from '../core/math.js';
 
 function hullPath(ctx, scale) {
   ctx.beginPath();

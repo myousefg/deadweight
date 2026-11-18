@@ -1,8 +1,8 @@
 // World-space effects drawn above the creatures: the tide surge ring, lightning arcs and the
 // golden glow of the Kraken's last moments.
 
-import { SURGE } from '../config.js';
-import { TAU, easeOutCubic } from '../math.js';
+import { SURGE } from '../core/config.js';
+import { TAU, easeOutCubic } from '../core/math.js';
 
 export function drawSurgeRing(ctx, world) {
   const surge = world.surge;

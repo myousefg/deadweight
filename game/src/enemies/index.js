@@ -1,16 +1,22 @@
-// The roster: every enemy kind by id, plus what each costs the wave budget and when it appears.
+// The roster: every enemy kind by id, split into the seven ordinary creatures and the four
+// bosses, plus what each ordinary kind costs the wave budget.
 
-import { jelly } from './jelly.js';
-import { piranha } from './piranha.js';
-import { urchin } from './urchin.js';
-import { puffer } from './puffer.js';
-import { shark } from './shark.js';
-import { colossus } from './colossus.js';
-import { eel } from './eel.js';
-import { kraken } from './kraken.js';
-import { angler } from './angler.js';
-import { manta } from './manta.js';
-import { admiral } from './admiral.js';
+import { jelly } from './creatures/jelly.js';
+import { piranha } from './creatures/piranha.js';
+import { urchin } from './creatures/urchin.js';
+import { puffer } from './creatures/puffer.js';
+import { shark } from './creatures/shark.js';
+import { manta } from './creatures/manta.js';
+import { angler } from './creatures/angler.js';
+import { colossus } from './bosses/colossus.js';
+import { eel } from './bosses/eel.js';
+import { admiral } from './bosses/admiral.js';
+import { kraken } from './bosses/kraken.js';
+
+/** Ordinary creatures in the order the voyage introduces them. */
+export const CREATURES = [jelly, piranha, urchin, puffer, shark, manta, angler];
+/** One boss per region, in voyage order. */
+export const BOSSES = [colossus, eel, admiral, kraken];
 
 export const ENEMY_TYPES = { jelly, piranha, urchin, puffer, shark, manta, angler, colossus, eel, admiral, kraken };
 

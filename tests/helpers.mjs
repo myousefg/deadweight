@@ -20,8 +20,8 @@ const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'game', 'src');
 /** Import a game module by its path under game/src. */
 export const load = (path) => import(pathToFileURL(join(SRC, path)).href);
 
-const [{ World }, { createAutopilot }, { STEP }, { rollChoices, applyUpgrade }, { isRegionStart, regionIndexOf, REGIONS }, contracts] = await Promise.all([
-  load('world.js'), load('autopilot.js'), load('config.js'), load('upgrades.js'), load('regions.js'), load('contracts.js'),
+const [{ World }, { createAutopilot }, { STEP }, { rollChoices, applyUpgrade }, { isRegionStart, regionIndexOf, REGIONS }, contracts, tracker] = await Promise.all([
+  load('sim/world.js'), load('tools/autopilot.js'), load('core/config.js'), load('data/upgrades.js'), load('data/regions.js'), load('data/contracts.js'), load('sim/contract-tracker.js'),
 ]);
 
 export { World, createAutopilot, STEP };
@@ -60,7 +60,7 @@ export function sailVoyage(seed, { endless = false, lastWave = 12, stormy = fals
   for (let wave = 1; wave <= lastWave; wave += 1) {
     if (isRegionStart(wave)) {
       world.stormy = stormy;
-      contracts.takeContract(world, contracts.offerContracts(world.rng, REGIONS[regionIndexOf(wave)].id)[0]);
+      tracker.takeContract(world, contracts.offerContracts(world.rng, REGIONS[regionIndexOf(wave)].id)[0]);
     }
     const state = playWave(world, pilot, wave);
     waves = wave;

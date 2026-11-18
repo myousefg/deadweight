@@ -1,12 +1,14 @@
 // The run summary shared by the victory and game-over screens: a big score, a rank, a grid of the
 // run's numbers, and a strip for any medals this voyage earned.
 
-import { PALETTE, FONT_TITLE, W } from '../config.js';
-import { formatScore, formatTime } from '../math.js';
-import { FINAL_WAVE } from '../waves.js';
-import { MEDALS } from '../medals.js';
+import { PALETTE, FONT_TITLE, W } from '../core/config.js';
+import { TAU, formatScore, formatTime } from '../core/math.js';
+import { FINAL_WAVE } from '../data/waves.js';
+import { MEDALS } from '../data/medals.js';
 import { text, panel } from './ui.js';
 import { drawIcon } from './icons.js';
+import { drawBossIcon } from './chart-art.js';
+import { BOSSES } from '../enemies/index.js';
 
 export function rankFor(score, won, endless = false, wave = 0) {
   if (endless) {
@@ -24,6 +26,23 @@ export function rankFor(score, won, endless = false, wave = 0) {
   if (score < 45000) return 'Kraken Slayer';
   if (score < 75000) return 'Anchor Master';
   return 'Legend of the Deep';
+}
+
+/** The four bosses as portraits: lit for each one this voyage sank, a shadow for the rest. */
+function drawBossRoll(ctx, world, cx, cy) {
+  const slain = new Set(world.stats.bossIds);
+  BOSSES.forEach((boss, index) => {
+    const x = cx + (index - 1.5) * 28;
+    const down = slain.has(boss.id);
+    ctx.beginPath();
+    ctx.arc(x, cy, 13, 0, TAU);
+    ctx.fillStyle = down ? 'rgba(255, 200, 61, 0.22)' : 'rgba(255, 255, 255, 0.06)';
+    ctx.fill();
+    ctx.lineWidth = down ? 2 : 1.2;
+    ctx.strokeStyle = down ? PALETTE.gold : 'rgba(180, 205, 215, 0.25)';
+    ctx.stroke();
+    drawBossIcon(ctx, boss.id, x, cy, 18, down ? PALETTE.cream : 'rgba(180, 205, 215, 0.3)', down ? 'rgba(18, 11, 5, 0.7)' : 'rgba(0, 0, 0, 0.1)');
+  });
 }
 
 export function drawResultsPanel(ctx, world, x, y, width, options = {}) {
@@ -65,6 +84,11 @@ export function drawResultsPanel(ctx, world, x, y, width, options = {}) {
     const tx = x + 36 + index * (tileWidth + 12);
     const ty = y + 172;
     panel(ctx, tx, ty, tileWidth, 90, { radius: 14, fill: 'rgba(255, 255, 255, 0.07)', stroke: null, shadow: false });
+    if (label === 'BOSSES' && !endless) {
+      drawBossRoll(ctx, world, tx + tileWidth / 2, ty + 34);
+      text(ctx, value, tx + tileWidth / 2, ty + 74, { size: 12, align: 'center', color: PALETTE.pearl });
+      return;
+    }
     text(ctx, value, tx + tileWidth / 2, ty + 48, { size: 30, align: 'center' });
     text(ctx, label, tx + tileWidth / 2, ty + 74, { size: 12, align: 'center', color: PALETTE.pearl });
   });

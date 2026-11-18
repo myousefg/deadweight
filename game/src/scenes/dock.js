@@ -3,12 +3,12 @@
 // with several levels) and LOG (medals, boss kills and lifetime numbers). Everything you own and
 // wear is saved between visits.
 
-import { W, H, PALETTE, FONT_TITLE } from '../config.js';
-import { clamp, formatScore } from '../math.js';
-import { ANCHOR_TYPES, anchorStats } from '../anchor-types.js';
-import { TALENTS, maxLevel } from '../talents.js';
-import { MEDALS } from '../medals.js';
-import { REGIONS } from '../regions.js';
+import { W, H, PALETTE, FONT_TITLE } from '../core/config.js';
+import { clamp, formatScore } from '../core/math.js';
+import { ANCHOR_TYPES, anchorStats } from '../data/anchor-types.js';
+import { TALENTS, maxLevel } from '../data/talents.js';
+import { MEDALS } from '../data/medals.js';
+import { REGIONS } from '../data/regions.js';
 import { drawAnchorShape } from '../render/anchor-shapes.js';
 import { drawIcon } from '../render/icons.js';
 import { drawBossIcon } from '../render/chart-art.js';

@@ -1,8 +1,8 @@
 // "The sea is calm": the Kraken is down. Golden rays, confetti, the run's numbers and an
 // instant restart.
 
-import { W, H, PALETTE } from '../config.js';
-import { TAU } from '../math.js';
+import { W, H, PALETTE } from '../core/config.js';
+import { TAU } from '../core/math.js';
 import { drawResultsPanel, drawMedalStrip } from '../render/results-panel.js';
 import { text, title, button, inRect, keycap } from '../render/ui.js';
 
@@ -12,6 +12,8 @@ const TITLE_BUTTON = { x: W / 2 + 20, y: 590, w: 330, h: 62 };
 export class VictoryScene {
   enter(game) {
     this.world = game.run.world;
+    // Floating combat text from the last blow would otherwise hang behind the results panel.
+    this.world.effects.popups.length = 0;
     this.newBest = !!game.run.newBest;
     this.elapsed = 0;
     this.hover = '';

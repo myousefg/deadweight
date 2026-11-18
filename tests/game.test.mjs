@@ -5,16 +5,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { load, World, createAutopilot, STEP, sailVoyage } from './helpers.mjs';
 
-const { regionIndexOf, isBossWave, isRegionStart, lapOf, REGIONS, REGION_COUNT } = await load('regions.js');
-const { WAVES, waveDef, FINAL_WAVE } = await load('waves.js');
+const { regionIndexOf, isBossWave, isRegionStart, lapOf, REGIONS, REGION_COUNT } = await load('data/regions.js');
+const { WAVES, waveDef, FINAL_WAVE } = await load('data/waves.js');
 const { ENEMY_TYPES, ENEMY_COST } = await load('enemies/index.js');
-const { Progress, salvageFor } = await load('progress.js');
-const { TALENTS, maxLevel, totalLevels } = await load('talents.js');
-const { MEDALS, awardMedals } = await load('medals.js');
-const { CONTRACTS, takeContract, updateContract, resolveContract, offerContracts } = await load('contracts.js');
-const { createMine, updateMines } = await load('mines.js');
-const { UPGRADES, applyUpgrade, upgradeById, rollChoices } = await load('upgrades.js');
-const { createRng } = await load('random.js');
+const { Progress, salvageFor } = await load('save/progress.js');
+const { TALENTS, maxLevel, totalLevels } = await load('data/talents.js');
+const { MEDALS, awardMedals } = await load('data/medals.js');
+const { CONTRACTS, offerContracts } = await load('data/contracts.js');
+const { takeContract, updateContract, resolveContract } = await load('sim/contract-tracker.js');
+const { createMine, updateMines } = await load('sim/mines.js');
+const { UPGRADES, applyUpgrade, upgradeById, rollChoices } = await load('data/upgrades.js');
+const { createRng } = await load('core/random.js');
 
 test('the voyage is four regions of three waves, each ending in its own boss', () => {
   assert.equal(REGION_COUNT, 4);
@@ -199,4 +200,19 @@ test('every upgrade card applies cleanly and respects its level cap', () => {
   assert.equal(rollChoices(createRng(1), world.build, 3).length, 0, 'a maxed build has nothing left to offer');
   assert.ok(world.build.thunder > 0 && world.build.reaper > 0 && world.build.armor > 0);
   assert.ok(upgradeById('gilded'));
+});
+
+test('the content manifest counts every table the game ships with', async () => {
+  const { CONTENT } = await load('data/content.js');
+  const { counts } = CONTENT;
+  assert.deepEqual(
+    { ...counts },
+    { regions: 4, waves: 12, creatures: 7, bosses: 4, upgrades: 17, anchors: 4, talents: 9, talentLevels: 19, medals: 18, contracts: 9 },
+  );
+  assert.equal(counts.talentLevels, totalLevels());
+  assert.equal(CONTENT.regions.length, counts.regions);
+  assert.equal(CONTENT.medals, MEDALS);
+  assert.deepEqual(CONTENT.bosses.map((boss) => boss.id), ['colossus', 'eel', 'admiral', 'kraken']);
+  assert.ok(CONTENT.bosses.every((boss) => boss.boss) && CONTENT.creatures.every((kind) => !kind.boss));
+  assert.ok(Object.isFrozen(CONTENT) && Object.isFrozen(counts));
 });

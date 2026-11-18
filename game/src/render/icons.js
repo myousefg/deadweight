@@ -1,7 +1,7 @@
 // Little line icons for the upgrade cards, one drawing function per upgrade `icon` name.
 
-import { PALETTE } from '../config.js';
-import { TAU } from '../math.js';
+import { PALETTE } from '../core/config.js';
+import { TAU } from '../core/math.js';
 
 const ICONS = {
   anchor(ctx) {

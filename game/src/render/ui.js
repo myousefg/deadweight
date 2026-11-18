@@ -1,6 +1,6 @@
 // Small canvas UI toolkit: text with outline and shadow, rounded panels and buttons.
 
-import { FONT_BODY, FONT_TITLE, PALETTE } from '../config.js';
+import { FONT_BODY, FONT_TITLE, PALETTE } from '../core/config.js';
 
 export function text(ctx, string, x, y, options = {}) {
   const {

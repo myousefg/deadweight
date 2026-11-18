@@ -2,15 +2,15 @@
 // meter, the voyage's wave pips, region, score, combo, boss health, the bounty contract, the
 // build bar, the wave banner and the aiming reticle.
 
-import { W, H, PALETTE, FONT_TITLE, BOAT, ANCHOR, HIT_TIERS } from '../config.js';
-import { TAU, easeOutBack, formatScore, clamp } from '../math.js';
+import { W, H, PALETTE, FONT_TITLE, BOAT, ANCHOR, HIT_TIERS } from '../core/config.js';
+import { TAU, easeOutBack, formatScore, clamp } from '../core/math.js';
 import { text, title, panel, roundRect, keycap, measure } from './ui.js';
-import { drawLifeRing } from '../pickups.js';
-import { comboMultiplier, stormMultiplier } from '../combat.js';
-import { FINAL_WAVE, waveDef } from '../waves.js';
-import { regionIndexOf, lapOf } from '../regions.js';
-import { UPGRADES, levelOf } from '../upgrades.js';
-import { contractProgress } from '../contracts.js';
+import { drawLifeRing } from '../sim/pickups.js';
+import { comboMultiplier, stormMultiplier } from '../sim/combat.js';
+import { FINAL_WAVE, waveDef } from '../data/waves.js';
+import { regionIndexOf, lapOf } from '../data/regions.js';
+import { UPGRADES, levelOf } from '../data/upgrades.js';
+import { contractProgress } from '../sim/contract-tracker.js';
 import { drawIcon } from './icons.js';
 
 const RARITY_COLOR = { common: '#6ff2c5', rare: '#7cc4ff', epic: '#ff8fc6' };
